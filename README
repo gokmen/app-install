@@ -80,8 +80,34 @@ start working on version 2, and add stuff like popularity metrics and metadata
 about suggesting gnome-power-manager rather than kpowersave if you're running
 GNOME. There are lots of things we need to add for this to work really well.
 
-./pk-app-install-create --verbose
-./pk-app-install-generate --verbose --repo=fedora --outputdir=./dist/icons --cache=./dist/livna.sqldata
-./pk-app-install-add --verbose --repo=fedora --icondir=./dist/icons --source=./dist/livna.sqldata
-./pk-app-install-remove --verbose --repo=fedora --icondir=./dist/icons
+>What do the tools do?
+
+$ app-install-create: creates the initial database, only used in the post section
+                      of the app-install package
+$ app-install-add: adds data to the system database, used in repo packages
+$ app-install-remove: removes data from the system database, used in repo packages
+$ app-install-generate: generates the data for a desktop file, used when
+                        generating data from the distro helper
+
+Now, the latter file is designed to be called from a distro specific helper,
+so for yum we do something like this:
+
+$ app-install-generate-yum.py --repo=rawhide --dist=./dist
+
+This downloads all the rawhide packages that ship a desktop file, uncompress them,
+and extract the data from the desktop files. There's a cache, so repeated runs
+of this don't have to re-download all the data. This tool takes about 10 minutes
+to run when the download has completed.
+
+This tools creates ./dist/rawhide-icons.tar.gz and ./dist/rawhide.sqldata which
+are designed to be shipped in a package file.
+
+In a package file, for instance, fedora-app-install, the post action would
+be something like:
+
+$ app-install-add --repo=fedora --source=/var/lib/app-install/rawhide.sqldata
+
+and in the preun:
+
+$ app-install-remove --repo=fedora
 
