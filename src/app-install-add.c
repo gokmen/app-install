@@ -124,6 +124,10 @@ main (int argc, char *argv[])
 	gchar *contents = NULL;
 	gboolean ret;
 	GError *error = NULL;
+	gchar **lines = NULL;
+	guint i;
+	guint success = 0;
+	guint failed = 0;
 
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
@@ -137,7 +141,7 @@ main (int argc, char *argv[])
 		{ "icondir", 'i', 0, G_OPTION_ARG_STRING, &icondir,
 		  /* TRANSLATORS: the icon directory */
 		  _("Icon directory"), NULL},
-		{ "repo", 'n', 0, G_OPTION_ARG_STRING, &repo,
+		{ "repo", 'r', 0, G_OPTION_ARG_STRING, &repo,
 		  /* TRANSLATORS: the repo of the software source, e.g. fedora */
 		  _("Name of the remote repo"), NULL},
 		{ NULL}
@@ -228,15 +232,30 @@ main (int argc, char *argv[])
 		goto out;
 	}
 
-	/* copy all the applications and translations into remote db */
-	rc = sqlite3_exec (db, contents, NULL, NULL, &error_msg);
-	if (rc != SQLITE_OK) {
-		egg_warning ("SQL error: %s\n", error_msg);
-		sqlite3_free (error_msg);
+	/* split into lines, so we can do the query in smaller lumps */
+	lines = g_strsplit (contents, "\n", -1);
+	for (i=0; lines[i] != NULL; i++) {
+
+		/* copy all the applications and translations into remote db */
+		rc = sqlite3_exec (db, lines[i], NULL, NULL, &error_msg);
+		if (rc == SQLITE_OK) {
+			/* success */
+			success++;
+		} else {
+			egg_debug ("failed: %s", lines[i]);
+			failed++;
+			egg_warning ("SQL error: %s\n", error_msg);
+			sqlite3_free (error_msg);
+		}
+	}
+
+	egg_debug ("%i additions to the database, %i failed", success, failed);
+
+	/* fail the tool if any failed */
+	if (failed > 0) {
 		retval = 1;
 		goto out;
 	}
-	egg_debug ("%i additions to the database", sqlite3_changes (db));
 
 	/* copy all the icons */
 	if (icondir != NULL) {
@@ -254,6 +273,7 @@ main (int argc, char *argv[])
 out:
 	if (db != NULL)
 		sqlite3_close (db);
+	g_strfreev (lines);
 	g_free (contents);
 	g_free (cache);
 	g_free (repo);
