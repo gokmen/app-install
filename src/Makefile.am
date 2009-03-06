@@ -1,0 +1,61 @@
+## We require new-style dependency handling.
+AUTOMAKE_OPTIONS = 1.7
+
+INCLUDES =						\
+	$(GLIB_CFLAGS)					\
+	$(GIO_CFLAGS)					\
+	$(SQLITE_CFLAGS)				\
+	-DPACKAGE_LOCALE_DIR=\"$(localedir)\"		\
+	-DSYSCONFDIR=\""$(sysconfdir)"\" 		\
+	-DDATADIR=\""$(datadir)"\" 			\
+	-DLOCALSTATEDIR=\""$(localstatedir)"\" 		\
+	-DEGG_LOG_FILE=\""$(LOG_DIR)/app-install"\"	\
+	-DEGG_VERBOSE="\"VERBOSE\""			\
+	-DEGG_LOGGING="\"LOGGING\""			\
+	-DEGG_CONSOLE="\"CONSOLE\""
+
+sbin_PROGRAMS = app-install-create app-install-remove app-install-add app-install-generate
+
+app_install_create_SOURCES =				\
+	egg-debug.c					\
+	egg-debug.h					\
+	app-install-create.c				\
+	app-install-common.h				\
+	$(NULL)
+app_install_create_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS)
+app_install_create_CFLAGS = $(WARNINGFLAGS_C)
+
+app_install_remove_SOURCES =				\
+	egg-debug.c					\
+	egg-debug.h					\
+	app-install-remove.c				\
+	app-install-common.h				\
+	$(NULL)
+app_install_remove_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS)
+app_install_remove_CFLAGS = $(WARNINGFLAGS_C)
+
+app_install_add_SOURCES =				\
+	egg-debug.c					\
+	egg-debug.h					\
+	app-install-add.c				\
+	app-install-common.h				\
+	$(NULL)
+app_install_add_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS)
+app_install_add_CFLAGS = $(WARNINGFLAGS_C)
+
+app_install_generate_SOURCES =				\
+	egg-debug.c					\
+	egg-debug.h					\
+	app-install-generate.c				\
+	app-install-common.h				\
+	$(NULL)
+app_install_generate_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS)
+app_install_generate_CFLAGS = $(WARNINGFLAGS_C)
+
+install-data-hook:
+	if test -w $(DESTDIR)$(prefix)/; then \
+		mkdir -p $(DESTDIR)$(localstatedir)/lib/app-install; \
+		mkdir -p $(DESTDIR)$(datadir)/app-install/icons; \
+		mkdir -p $(DESTDIR)$(datadir)/app-install/desktop; \
+	fi
+

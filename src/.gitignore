@@ -1,0 +1,9 @@
+.deps
+.libs
+*.o
+app-install-add
+app-install-create
+app-install-generate
+app-install-remove
+*.sqldata
+
