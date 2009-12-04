@@ -86,9 +86,11 @@ def main():
 
     # find all packages
     pkgs = yb.pkgSack
+    licenses = []
     for pkg in pkgs:
         if pkg.repoid != reponame:
             continue
+
         repo = yb.repos.getRepo(pkg.repoid)
         print "package name:", pkg.name
         
@@ -102,6 +104,11 @@ def main():
         # don't download packages without desktop files
         if len(desktop_files) == 0:
             continue
+
+        # add license string
+        if pkg.license not in licenses:
+            licenses.append(pkg.license)
+        continue
 
         # get base name without the slash
         relativepath = pkg.returnSimple('relativepath')
@@ -151,6 +158,14 @@ def main():
         # do this per package else it takes ages at the end
         print 'removing temporary files'
         shutil.rmtree(dist + '/root')
+
+    # get license string
+    license_string = ''
+    for license in licenses:
+        if license.find(' ') != -1:
+            license = '(' + license + ')'
+        license_string += "%s and " % license
+    print 'license = ', license_string
 
     print 'finished file write'
     outp.close()
