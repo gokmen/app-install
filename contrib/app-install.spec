@@ -1,10 +1,10 @@
 Summary: Tools for managing application install data
 Name: app-install
-Version: 001
+Version: 002
 Release: 1
-License: GPLv2
+License: GPLv2+
 Group: System Environment/Libraries
-URL: http://www.packagekit.org/
+URL: http://github.com/hughsie/app-install
 Source0: http://www.packagekit.org/releases/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: glib2-devel
@@ -36,7 +36,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/app-install-create
 
 %files
-# -f %{name}.lang
+#%files -f %{name}.lang
 %defattr(-,root,root,-)
 %doc AUTHORS COPYING ChangeLog
 %{_sbindir}/app-install-generate-yum.py*
@@ -52,6 +52,6 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/app-install/docs/app-install-v1.draft
 
 %changelog
-* Fri Mar 06 2009 Richard Hughes <rhughes@redhat.com> - 001-1
+* Fri Mar 06 2009 Richard Hughes <rhughes@redhat.com> - 002-1
 - Initial build.
 
