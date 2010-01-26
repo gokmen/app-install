@@ -74,13 +74,14 @@ This is used, for instance:
 
 * We installed a package and give a list of applications to run
 * We remove a package and give a list of applications that are removed
-* We can choose the 'best' icon using a (hacky) metric to put a themed icon next to the installed package
+* We can choose the 'best' icon using a (hacky) metric to put a themed icon next
+  to the installed package
 
 == location of the files ==
 /var/lib/app-install/desktop.db
 /usr/share/app-install/icons/48x48/${application_id}.png (optional, recommended)
 /usr/share/app-install/icons/24x24/${application_id}.png (optional, not recommended)
-/usr/share/app-install/desktop/${application_id}.desktop (for Ubuntu compatibility, not recommended)
+/usr/share/app-install/desktop/${application_id}.desktop (for Ubuntu compatibility)
 
 == Schema ==
 
@@ -100,20 +101,20 @@ STRING application_name (Name in desktop file)
 STRING application_summary (Comment in desktop file)
 
 == Possible Commands ==
-pk-app-install-create --cache=/usr/share/app-install/cache/desktop.db
-pk-app-install-add --repo=livna --source=./livna/desktop.db --icondir=./livna/icons --cache=/usr/share/app-install/cache/desktop.db
-pk-app-install-remove --repo=livna --icondir=/usr/share/app-install/icons --cache=/usr/share/app-install/cache/desktop.db
+app-install-create --cache=/usr/share/app-install/cache/desktop.db
+app-install-add --repo=livna --source=./livna/desktop.db --icondir=./livna/icons --cache=/usr/share/app-install/cache/desktop.db
+app-install-remove --repo=livna --icondir=/usr/share/app-install/icons --cache=/usr/share/app-install/cache/desktop.db
 
 What to do in packages:
-PackageKit(install):	pk-app-install-create
-livna-release(install):	pk-app-install-add --repo=livna --source=/usr/share/livna-release/desktop.sqldata --icondir=/usr/share/livna-release/icons
-livna-release(removal):	pk-app-install-remove --repo=livna
-livna-release(upgrade): pk-app-install-remove --repo=livna
-livna-release(upgrade): pk-app-install-add --repo=livna --source=/usr/share/livna-release/desktop.sqldata --icondir=/usr/share/livna-release/icons
+PackageKit(install):	app-install-create
+livna-release(install):	app-install-add --repo=livna --source=/usr/share/livna-release/desktop.sqldata --icondir=/usr/share/livna-release/icons
+livna-release(removal):	app-install-remove --repo=livna
+livna-release(upgrade): app-install-remove --repo=livna
+livna-release(upgrade): app-install-add --repo=livna --source=/usr/share/livna-release/desktop.sqldata --icondir=/usr/share/livna-release/icons
 
 all distro specific stuff to live in backends/, but typically:
-yum-app-install-generate --name=livna --cache=~/livna-apps.db
-pk-app-install-generate --repo=livna --applicationdir=/usr/share/applications --icondir=/usr/share/icons --outputdir=./icons --cache=./desktop.sqldata
+app-install-generate-yum.py --name=livna --cache=~/livna-apps.db
+app-install-generate --repo=livna --applicationdir=/usr/share/applications --icondir=/usr/share/icons --outputdir=./icons --cache=./desktop.sqldata
 
 
 == Open questions ===
