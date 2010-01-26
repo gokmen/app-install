@@ -1,16 +1,19 @@
-AC_PREREQ(2.52)
+AC_PREREQ(2.63)
 
-AC_INIT(app-install, 002)
+AC_INIT([app-install],[002])
 AC_CONFIG_SRCDIR(src)
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
+
+# enable nice build output on automake1.11
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 AC_PROG_CC
 AC_PROG_INSTALL
-AC_ISC_POSIX
+AC_SEARCH_LIBS([strerror],[cposix])
 AC_HEADER_STDC
-AC_PROG_LIBTOOL
+LT_INIT
 AM_PROG_CC_C_O
 
 # Internationalisation
@@ -103,13 +106,14 @@ AC_SUBST(LOCALSTATEDIR, $localstatedir)
 dnl ---------------------------------------------------------------------------
 dnl - Makefiles, etc.
 dnl ---------------------------------------------------------------------------
-AC_OUTPUT([
+AC_CONFIG_FILES([
 Makefile
 docs/Makefile
 contrib/Makefile
 src/Makefile
 po/Makefile.in
 ])
+AC_OUTPUT
 
 dnl ==========================================================================
 echo "
