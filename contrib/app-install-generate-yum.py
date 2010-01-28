@@ -93,7 +93,7 @@ def main():
 
         repo = yb.repos.getRepo(pkg.repoid)
         print "package name:", pkg.name
-        
+
         # find out if any of the files ship a desktop file
         desktop_files = []
         for instfile in pkg.returnFileEntries():
@@ -108,7 +108,6 @@ def main():
         # add license string
         if pkg.license not in licenses:
             licenses.append(pkg.license)
-        continue
 
         # get base name without the slash
         relativepath = pkg.returnSimple('relativepath')
@@ -146,11 +145,13 @@ def main():
         for instfile in desktop_files:
             print 'generating sql for', instfile
             cwd = os.getcwd()
-            cmd = "app-install-generate --outputdir=%s --repo=%s --root=%s --desktopfile=%s --package=%s" % (dist, pkg.repoid, cwd + '/' + dist + '/root', instfile, pkg.name)
+            cmd = "app-install-generate --outputdir=%s --repo=%s --root=%s --desktopfile=%s --package=%s" % (dist, pkg.repoid, dist + '/root', instfile, pkg.name)
             p = subprocess.Popen(cmd, shell=True, cwd=cwd, stdout=subprocess.PIPE)
             p.wait()
             if p.returncode:
-                print 'failed to generate sql for', instfile
+                print 'failed to generate sql for', instfile, 'using', cmd, ':'
+                for line in p.stdout:
+                    print line
                 continue
             for sql in p.stdout:
                 outp.write(sql)
