@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
  *
- * Copyright (C) 2009 Richard Hughes <richard@hughsie.com>
+ * Copyright (C) 2009-2010 Richard Hughes <richard@hughsie.com>
  *
  * Licensed under the GNU General Public License Version 2
  *
@@ -21,89 +21,12 @@
 
 #include "config.h"
 
-#include <string.h>
 #include <glib/gi18n.h>
-#include <sqlite3.h>
-#include <gio/gio.h>
 
 #include "ai-common.h"
 #include "ai-database.h"
 
 #include "egg-debug.h"
-
-static const gchar *icon_sizes[] = { "22x22", "24x24", "32x32", "48x48", "scalable", NULL };
-
-/**
- * ai_add_get_number_sqlite_cb:
- **/
-static gint
-ai_add_get_number_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_name)
-{
-	guint *number = (guint *) data;
-	(*number)++;
-	return 0;
-}
-
-/**
- * ai_add_copy_icons_sqlite_cb:
- **/
-static gint
-ai_add_copy_icons_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_name)
-{
-	guint i;
-	gchar *col;
-	gchar *value;
-	const gchar *application_id = NULL;
-	const gchar *icon_name = NULL;
-	gchar *path;
-	gchar *dest;
-	GFile *file;
-	GFile *remote;
-	const gchar *icondir = (const gchar *) data;
-	gboolean ret;
-	gchar *icon_name_full;
-	GError *error = NULL;
-
-	for (i=0; i<(guint)argc; i++) {
-		col = col_name[i];
-		value = argv[i];
-		if (g_strcmp0 (col, "application_id") == 0)
-			application_id = value;
-		else if (g_strcmp0 (col, "icon_name") == 0)
-			icon_name = value;
-	}
-	if (application_id == NULL || icon_name == NULL)
-		goto out;
-
-	egg_debug ("copying icon %s for application: %s", icon_name, application_id);
-	icon_name_full = g_strdup_printf ("%s.png", icon_name);
-
-	/* copy all icon sizes if they exist */
-	for (i=0; icon_sizes[i] != NULL; i++) {
-		path = g_build_filename (icondir, icon_sizes[i], icon_name_full, NULL);
-		ret = g_file_test (path, G_FILE_TEST_EXISTS);
-		if (ret) {
-			dest = g_build_filename (AI_DEFAULT_ICONDIR, icon_sizes[i], icon_name_full, NULL);
-			egg_debug ("copying file %s to %s", path, dest);
-			file = g_file_new_for_path (path);
-			remote = g_file_new_for_path (dest);
-			ret = g_file_copy (file, remote, G_FILE_COPY_TARGET_DEFAULT_PERMS, NULL, NULL, NULL, &error);
-			if (!ret) {
-				egg_warning ("cannot copy %s: %s", path, error->message);
-				g_clear_error (&error);
-			}
-			g_object_unref (file);
-			g_object_unref (remote);
-			g_free (dest);
-		} else {
-			egg_debug ("failed to find icon %s", path);
-		}
-		g_free (path);
-	}
-	g_free (icon_name_full);
-out:
-	return 0;
-}
 
 /**
  * main:
@@ -116,20 +39,14 @@ main (int argc, char *argv[])
 	gint retval = 0;
 	gchar *database = NULL;
 	gchar *repo = NULL;
-	gchar *source = NULL;
+	gchar *package = NULL;
 	gchar *icondir = NULL;
-	sqlite3 *db = NULL;
-	gchar *error_msg;
-	gint rc;
+	gchar *source_database = NULL;
+	gchar *source_icondir = NULL;
 	guint number = 0;
-	gchar *statement;
-	gchar *contents = NULL;
 	gboolean ret;
 	GError *error = NULL;
-	gchar **lines = NULL;
-	guint i;
-	guint success = 0;
-	guint failed = 0;
+	AiDatabase *db = NULL;
 
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
@@ -137,15 +54,21 @@ main (int argc, char *argv[])
 		{ "database", 'd', 0, G_OPTION_ARG_STRING, &database,
 		  /* TRANSLATORS: if we are specifing a out-of-tree database */
 		  _("Database file to use (if not specififed, default is used)"), NULL},
-		{ "source", 's', 0, G_OPTION_ARG_STRING, &source,
+		{ "source-database", '\0', 0, G_OPTION_ARG_STRING, &source_database,
 		  /* TRANSLATORS: the source database, typically used for adding */
 		  _("Source database file to add to the main database"), NULL},
 		{ "icondir", 'i', 0, G_OPTION_ARG_STRING, &icondir,
 		  /* TRANSLATORS: the icon directory */
 		  _("Icon directory"), NULL},
+		{ "source-icondir", '\0', 0, G_OPTION_ARG_STRING, &source_icondir,
+		  /* TRANSLATORS: the icon directory */
+		  _("Icon directory"), NULL},
 		{ "repo", 'r', 0, G_OPTION_ARG_STRING, &repo,
 		  /* TRANSLATORS: the repo of the software source, e.g. fedora */
 		  _("Name of the remote repo"), NULL},
+		{ "package", 'p', 0, G_OPTION_ARG_STRING, &package,
+		  /* TRANSLATORS: the package name, e.g. kernel */
+		  _("Name of the package"), NULL},
 		{ NULL}
 	};
 
@@ -164,123 +87,102 @@ main (int argc, char *argv[])
 	g_type_init ();
 	egg_debug_init (verbose);
 
-	egg_debug ("database=%s, source=%s, repo=%s, icondir=%s", database, source, repo, icondir);
+	egg_debug ("database=%s, source_database=%s, repo=%s, icondir=%s", database, source_database, repo, icondir);
 
-	/* use default */
-	if (database == NULL) {
-		egg_debug ("database not specified, using %s", AI_DEFAULT_DATABASE);
-		database = g_strdup (AI_DEFAULT_DATABASE);
-	}
-
-	if (repo == NULL) {
-		egg_warning ("A repo name is required");
+	if (repo == NULL && package == NULL) {
+		g_print ("%s\n", _("Please specify --repo or --package"));
 		retval = 1;
 		goto out;
 	}
-	if (source == NULL) {
-		egg_warning ("A source filename is required");
-		retval = 1;
-		goto out;
-	}
-	if (!g_file_test (source, G_FILE_TEST_EXISTS)) {
-		egg_warning ("The source filename '%s' could not be found", source);
-		retval = 1;
-		goto out;
-	}
-	if (icondir != NULL && !g_file_test (icondir, G_FILE_TEST_IS_DIR)) {
-		egg_warning ("The icon directory '%s' could not be found", icondir);
+	if (source_database == NULL) {
+		g_print ("%s\n", _("A source database filename is required"));
 		retval = 1;
 		goto out;
 	}
 
-	/* check that there are no existing entries from this repo */
-	rc = sqlite3_open (database, &db);
-	if (rc) {
-		egg_warning ("Can't open database: %s\n", sqlite3_errmsg (db));
-		retval = 1;
-		goto out;
-	}
-
-	/* check that there are no existing entries from this repo */
-	statement = g_strdup_printf ("SELECT application_id FROM applications WHERE repo_id = '%s'", repo);
-	rc = sqlite3_exec (db, statement, ai_add_get_number_sqlite_cb, (void*) &number, &error_msg);
-	g_free (statement);
-	if (rc != SQLITE_OK) {
-		egg_warning ("SQL error: %s\n", error_msg);
-		sqlite3_free (error_msg);
-		retval = 1;
-		goto out;
-	}
-
-	/* already have data for this repo */
-	if (number > 0) {
-		egg_warning ("There are already %i entries for repo_id=%s", number, repo);
-		goto out;
-	}
-
-	/* get all the sql from the source file */
-	ret = g_file_get_contents (source, &contents, NULL, &error);
+	/* open database */
+	db = ai_database_new ();
+	ai_database_set_filename (db, database);
+	ai_database_set_icon_path (db, icondir);
+	ret = ai_database_open (db, &error);
 	if (!ret) {
-		egg_warning ("cannot read source file: %s", error->message);
+		g_print ("%s: %s\n", _("Failed to open"), error->message);
 		g_error_free (error);
-		goto out;
-	}
-
-	/* don't sync */
-	rc = sqlite3_exec (db, "PRAGMA synchronous=OFF", NULL, NULL, NULL);
-	if (rc) {
-		egg_warning ("Can't turn off sync: %s\n", sqlite3_errmsg (db));
 		retval = 1;
 		goto out;
 	}
 
-	/* split into lines, so we can do the query in smaller lumps */
-	lines = g_strsplit (contents, "\n", -1);
-	for (i=0; lines[i] != NULL; i++) {
-
-		/* copy all the applications and translations into remote db */
-		rc = sqlite3_exec (db, lines[i], NULL, NULL, &error_msg);
-		if (rc == SQLITE_OK) {
-			/* success */
-			success++;
-		} else {
-			egg_debug ("failed: %s", lines[i]);
-			failed++;
-			egg_warning ("SQL error: %s\n", error_msg);
-			sqlite3_free (error_msg);
-		}
-	}
-
-	egg_debug ("%i additions to the database, %i failed", success, failed);
-
-	/* fail the tool if any failed */
-	if (failed > 0) {
-		retval = 1;
-		goto out;
-	}
-
-	/* copy all the icons */
-	if (icondir != NULL) {
-		statement = g_strdup_printf ("SELECT application_id, icon_name FROM applications WHERE repo_id = '%s'", repo);
-		rc = sqlite3_exec (db, statement, ai_add_copy_icons_sqlite_cb, (void*) icondir, &error_msg);
-		g_free (statement);
-		if (rc != SQLITE_OK) {
-			egg_warning ("SQL error: %s\n", error_msg);
-			sqlite3_free (error_msg);
+	if (repo != NULL) {
+		/* create it */
+		ret = ai_database_query_by_repo (db, repo, &number, &error);
+		if (!ret) {
+			g_print ("%s: %s\n", _("Failed to query by repo"), error->message);
+			g_error_free (error);
 			retval = 1;
 			goto out;
 		}
+
+		/* already have data for this repo */
+		if (number > 0) {
+			egg_warning ("There are already %i entries for repo %s", number, repo);
+			goto out;
+		}
+
+		/* import it */
+		ret = ai_database_import_by_repo (db, source_database, source_icondir, repo, &number, &error);
+		if (!ret) {
+			g_print ("%s: %s\n", _("Failed to create"), error->message);
+			g_error_free (error);
+			retval = 1;
+			goto out;
+		}
+		egg_debug ("%i additions to the database", number);
 	}
 
+	if (package != NULL) {
+		/* create it */
+		ret = ai_database_query_by_name (db, package, &number, &error);
+		if (!ret) {
+			g_print ("%s: %s\n", _("Failed to query by name"), error->message);
+			g_error_free (error);
+			retval = 1;
+			goto out;
+		}
+
+		/* already have data for this name */
+		if (number > 0) {
+			egg_warning ("There are already %i entries for name %s", number, package);
+			goto out;
+		}
+
+		/* import it */
+		ret = ai_database_import_by_name (db, source_database, source_icondir, package, &number, &error);
+		if (!ret) {
+			g_print ("%s: %s\n", _("Failed to create"), error->message);
+			g_error_free (error);
+			retval = 1;
+			goto out;
+		}
+		egg_debug ("%i additions to the database", number);
+	}
+
+	/* close it */
+	ret = ai_database_close (db, &error);
+	if (!ret) {
+		g_print ("%s: %s\n", _("Failed to close"), error->message);
+		g_error_free (error);
+		retval = 1;
+		goto out;
+	}
 out:
 	if (db != NULL)
-		sqlite3_close (db);
-	g_strfreev (lines);
-	g_free (contents);
-	g_free (database);
+		g_object_unref (db);
+	g_free (package);
 	g_free (repo);
-	g_free (source);
+	g_free (database);
 	g_free (icondir);
+	g_free (source_database);
+	g_free (source_icondir);
 	return 0;
 }
 

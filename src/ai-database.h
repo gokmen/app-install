@@ -66,6 +66,45 @@ gboolean	 ai_database_remove_by_repo		(AiDatabase	*database,
 gboolean	 ai_database_remove_by_name		(AiDatabase	*database,
 							 const gchar	*name,
 							 GError		**error);
+gboolean	 ai_database_query_by_repo		(AiDatabase	*database,
+							 const gchar	*repo,
+							 guint		*value,
+							 GError		**error);
+gboolean	 ai_database_query_by_name		(AiDatabase	*database,
+							 const gchar	*name,
+							 guint		*value,
+							 GError		**error);
+gboolean	 ai_database_import			(AiDatabase	*database,
+							 const gchar	*filename,
+							 guint		*value,
+							 GError		**error);
+gboolean	 ai_database_add_translation		(AiDatabase	*database,
+							 const gchar	*application_id,
+							 const gchar	*name,
+							 const gchar	*summary,
+							 const gchar	*locale,
+							 GError		**error);
+gboolean	 ai_database_add_application		(AiDatabase	*database,
+							 const gchar	*application_id,
+							 const gchar	*package,
+							 const gchar	*categories,
+							 const gchar	*repo,
+							 const gchar	*icon,
+							 const gchar	*name,
+							 const gchar	*summary,
+							 GError		**error);
+gboolean	 ai_database_import_by_name		(AiDatabase	*database,
+							 const gchar	*filename,
+							 const gchar	*icondir,
+							 const gchar	*name,
+							 guint		*value,
+							 GError		**error);
+gboolean	 ai_database_import_by_repo		(AiDatabase	*database,
+							 const gchar	*filename,
+							 const gchar	*icondir,
+							 const gchar	*repo,
+							 guint		*value,
+							 GError		**error);
 
 G_END_DECLS
 

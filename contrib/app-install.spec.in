@@ -41,8 +41,8 @@ rm -rf $RPM_BUILD_ROOT
 #%files -f %{name}.lang
 %defattr(-,root,root,-)
 %doc AUTHORS COPYING ChangeLog
-%{_sbindir}/app-install-generate-yum.py*
 %{_sbindir}/app-install-*
+%{_bindir}/app-install-*
 %dir %{_datadir}/app-install
 %dir %{_datadir}/app-install/docs
 %dir %{_datadir}/app-install/icons

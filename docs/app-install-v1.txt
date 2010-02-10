@@ -36,10 +36,7 @@ searches, and can query on the native DE groups using a fast .
   be increased in future versions of the standard and the database format will
   be expanded.
 
-The interchange format is native SQL, rather than a compressed database.
-This is so the information can be verified, rather than just shipping a
-'binary blob' of a database file. This file is usually very well compressed in
-packages or tar.gz archives.
+The interchange format is a native sqlite database.
 
 This also allows using a database such as MySQL or postgresql if required.
 

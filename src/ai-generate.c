@@ -23,7 +23,6 @@
 
 #include <string.h>
 #include <glib/gi18n.h>
-#include <sqlite3.h>
 #include <gio/gio.h>
 
 #include "ai-common.h"
@@ -216,17 +215,16 @@ ai_generate_get_application_id (const gchar *filename)
 /**
  * ai_generate_applications_sql:
  **/
-static gchar *
-ai_generate_applications_sql (GPtrArray *data, const gchar *repo, const gchar *package, const gchar *application_id)
+static gboolean
+ai_generate_applications_sql (AiDatabase *db, GPtrArray *data, const gchar *repo, const gchar *package, const gchar *application_id)
 {
-	GString *sql;
 	gchar *name = NULL;
 	gchar *comment = NULL;
 	gchar *icon_name = NULL;
 	gchar *categories = NULL;
-	gchar *escaped;
+	gboolean ret;
+	GError *error = NULL;
 
-	sql = g_string_new ("");
 	name = ai_generate_get_value_for_locale (data, "Name", NULL);
 	icon_name = ai_generate_get_value_for_locale (data, "Icon", NULL);
 	comment = ai_generate_get_value_for_locale (data, "Comment", NULL);
@@ -241,36 +239,33 @@ ai_generate_applications_sql (GPtrArray *data, const gchar *repo, const gchar *p
 	}
 
 	egg_debug ("application_id=%s, name=%s, comment=%s, icon=%s, categories=%s", application_id, name, comment, icon_name, categories);
-
-	/* append the application data to the sql string */
-	escaped = sqlite3_mprintf ("INSERT INTO applications (application_id, package_name, categories, "
-				   "repo_id, icon_name, application_name, application_summary) "
-				   "VALUES (%Q, %Q, %Q, %Q, %Q, %Q, %Q);",
-				   application_id, package, categories, repo, icon_name, name, comment);
-	g_string_append_printf (sql, "%s\n", escaped);
-
-	sqlite3_free (escaped);
+	ret = ai_database_add_application (db, application_id, package, categories, repo, icon_name, name, comment, &error);
+	if (!ret) {
+		egg_warning ("failed to add application: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+out:
 	g_free (name);
 	g_free (comment);
 	g_free (icon_name);
 	g_free (categories);
-	return g_string_free (sql, FALSE);
+	return ret;
 }
 
 /**
  * ai_generate_translations_sql:
  **/
-static gchar *
-ai_generate_translations_sql (GPtrArray *data, GPtrArray *locales, const gchar *application_id)
+static gboolean
+ai_generate_translations_sql (AiDatabase *db, GPtrArray *data, GPtrArray *locales, const gchar *application_id)
 {
-	GString *sql;
 	gchar *name = NULL;
 	gchar *comment = NULL;
-	gchar *escaped;
 	const gchar *locale;
 	guint i;
+	gboolean ret = TRUE;
+	GError *error = NULL;
 
-	sql = g_string_new ("");
 	for (i=0; i<locales->len; i++) {
 		locale = g_ptr_array_index (locales, i);
 		name = ai_generate_get_value_for_locale (data, "Name", locale);
@@ -278,17 +273,18 @@ ai_generate_translations_sql (GPtrArray *data, GPtrArray *locales, const gchar *
 
 		/* append the application data to the sql string if either not null */
 		if (name != NULL || comment != NULL) {
-			escaped = sqlite3_mprintf ("INSERT INTO translations (application_id, application_name, application_summary, locale) "
-						   "VALUES (%Q, %Q, %Q, %Q);", application_id, name, comment, locale);
-			g_string_append_printf (sql, "%s\n", escaped);
-
-			sqlite3_free (escaped);
-			g_free (name);
-			g_free (comment);
+			ret = ai_database_add_translation (db, application_id, name, comment, locale, &error);
+			if (!ret) {
+				egg_warning ("failed to add translation: %s", error->message);
+				g_error_free (error);
+				goto out;
+			}
 		}
+		g_free (name);
+		g_free (comment);
 	}
-
-	return g_string_free (sql, FALSE);
+out:
+	return ret;
 }
 
 /**
@@ -355,24 +351,29 @@ main (int argc, char *argv[])
 	gchar *outputdir = NULL;
 	gchar *icondir = NULL;
 	gchar *package = NULL;
-	GString *string = NULL;
+	gboolean ret;
+	GError *error = NULL;
 	GPtrArray *data = NULL;
-	gchar *sql = NULL;
 	gchar *application_id = NULL;
 	gchar *icon_name = NULL;
 	GPtrArray *locales = NULL;
 	gchar *filename = NULL;
+	AiDatabase *db = NULL;
+	gchar *database = NULL;
 
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
 		  _("Show extra debugging information"), NULL },
+		{ "database", 'd', 0, G_OPTION_ARG_STRING, &database,
+		  /* TRANSLATORS: if we are specifing a out-of-tree database */
+		  _("Database file to use (if not specififed, default is used)"), NULL},
 		{ "root", 'r', 0, G_OPTION_ARG_STRING, &root,
 		  /* TRANSLATORS: the root database, typically used for adding */
 		  _("Source cache file to add to the main database"), NULL},
 		{ "desktopfile", 'i', 0, G_OPTION_ARG_STRING, &desktopfile,
 		  /* TRANSLATORS: the icon directory */
 		  _("Desktop file in the root"), NULL},
-		{ "package", 'n', 0, G_OPTION_ARG_STRING, &package,
+		{ "package", 'p', 0, G_OPTION_ARG_STRING, &package,
 		  /* TRANSLATORS: the repo of the software root, e.g. fedora */
 		  _("Name of the package"), NULL},
 		{ "outputdir", 'o', 0, G_OPTION_ARG_STRING, &outputdir,
@@ -398,8 +399,6 @@ main (int argc, char *argv[])
 
 	g_type_init ();
 	egg_debug_init (verbose);
-
-	/* use default */
 
 	/* things we require */
 	if (repo == NULL) {
@@ -441,12 +440,20 @@ main (int argc, char *argv[])
 		goto out;
 	}
 
+	/* open database */
+	db = ai_database_new ();
+	ai_database_set_filename (db, database);
+	ret = ai_database_open (db, &error);
+	if (!ret) {
+		g_print ("%s: %s\n", _("Failed to open"), error->message);
+		g_error_free (error);
+		retval = 1;
+		goto out;
+	}
+
 	/* generate the sub directories in the outputdir if they dont exist */
 	icondir = g_build_filename (outputdir, "icons", NULL);
 	ai_generate_create_icon_directories (icondir);
-
-	/* use this to dump the data */
-	string = g_string_new ("");
 
 	if (desktopfile[0] != '/') {
 		filename = g_build_filename (root, "/usr/share/applications", desktopfile, NULL);
@@ -467,9 +474,7 @@ main (int argc, char *argv[])
 	}
 
 	/* form application SQL */
-	sql = ai_generate_applications_sql (data, repo, package, application_id);
-	g_string_append_printf (string, "%s", sql);
-	g_free (sql);
+	ret = ai_generate_applications_sql (db, data, repo, package, application_id);
 
 	/* get list of locales in this file */
 	locales = ai_generate_get_locales (data);
@@ -480,21 +485,24 @@ main (int argc, char *argv[])
 	}
 
 	/* form translations SQL */
-	sql = ai_generate_translations_sql (data, locales, application_id);
-	g_string_append_printf (string, "%s\n", sql);
-	g_free (sql);
+	ret = ai_generate_translations_sql (db, data, locales, application_id);
 
 	/* copy icons */
 	icon_name = ai_generate_get_value_for_locale (data, "Icon", NULL);
 	if (icon_name != NULL && !g_str_has_suffix (icon_name, ".png"))
 		ai_generate_copy_icons (root, icondir, icon_name);
 
-	/* print to screen */
-	g_print ("%s", string->str);
-
+	/* close it */
+	ret = ai_database_close (db, &error);
+	if (!ret) {
+		g_print ("%s: %s\n", _("Failed to close"), error->message);
+		g_error_free (error);
+		retval = 1;
+		goto out;
+	}
 out:
-	if (string != NULL)
-		g_string_free (string, TRUE);
+	if (db != NULL)
+		g_object_unref (db);
 	if (locales != NULL) {
 		g_ptr_array_foreach (locales, (GFunc) g_free, NULL);
 		g_ptr_array_free (locales, TRUE);
@@ -504,6 +512,7 @@ out:
 		g_ptr_array_free (data, TRUE);
 	}
 	g_free (icondir);
+	g_free (database);
 	g_free (icon_name);
 	g_free (package);
 	g_free (filename);

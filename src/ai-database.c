@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
  *
- * Copyright (C) 2009 Richard Hughes <richard@hughsie.com>
+ * Copyright (C) 2009-2010 Richard Hughes <richard@hughsie.com>
  *
  * Licensed under the GNU General Public License Version 2
  *
@@ -57,6 +57,8 @@ G_DEFINE_TYPE (AiDatabase, ai_database, G_TYPE_OBJECT)
 
 /*
  * ai_database_set_filename:
+ *
+ * The source database filename.
  */
 void
 ai_database_set_filename (AiDatabase *database, const gchar *filename)
@@ -78,6 +80,8 @@ ai_database_set_filename (AiDatabase *database, const gchar *filename)
 
 /*
  * ai_database_set_icon_path:
+ *
+ * The icon path for the currently loaded database.
  */
 void
 ai_database_set_icon_path (AiDatabase *database, const gchar *icon_path)
@@ -295,8 +299,8 @@ ai_database_remove_by_repo (AiDatabase *database, const gchar *repo, GError **er
 
 	/* delete from translations (translations has no repo_id, so key off applications) */
 	statement = g_strdup_printf ("DELETE FROM translations WHERE EXISTS ( "
-				      "SELECT applications.application_id FROM applications WHERE "
-				      "applications.application_id = applications.application_id AND applications.repo_id = '%s')", repo);
+				     "SELECT applications.application_id FROM applications WHERE "
+				     "applications.application_id = applications.application_id AND applications.repo_id = '%s')", repo);
 	rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
 	g_free (statement);
 	if (rc) {
@@ -374,6 +378,530 @@ out:
 	return ret;
 }
 
+/**
+ * ai_database_get_number_sqlite_cb:
+ **/
+static gint
+ai_database_get_number_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+{
+	guint *number = (guint *) data;
+	(*number)++;
+	return 0;
+}
+
+/*
+ * ai_database_query_by_repo:
+ */
+gboolean
+ai_database_query_by_repo (AiDatabase *database, const gchar *repo, guint *value, GError **error)
+{
+	gboolean ret = TRUE;
+	gchar *statement;
+	gint rc;
+	gchar *error_msg;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (!priv->locked, FALSE);
+
+	/* check that there are no existing entries from this repo */
+	statement = g_strdup_printf ("SELECT application_id FROM applications WHERE repo_id = '%s'", repo);
+	rc = sqlite3_exec (priv->db, statement, ai_database_get_number_sqlite_cb, (void*) value, &error_msg);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0, "SQL error: %s\n", sqlite3_errmsg (priv->db));
+		ret = FALSE;
+		sqlite3_free (error_msg);
+		goto out;
+	}
+out:
+	g_free (statement);
+	return ret;
+}
+
+/*
+ * ai_database_query_by_name:
+ */
+gboolean
+ai_database_query_by_name (AiDatabase *database, const gchar *name, guint *value, GError **error)
+{
+	gboolean ret = TRUE;
+	gchar *statement;
+	gint rc;
+	gchar *error_msg;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (!priv->locked, FALSE);
+
+	/* check that there are no existing entries from this repo */
+	statement = g_strdup_printf ("SELECT application_id FROM applications WHERE package_name = '%s'", name);
+	rc = sqlite3_exec (priv->db, statement, ai_database_get_number_sqlite_cb, (void*) value, &error_msg);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0, "SQL error: %s\n", sqlite3_errmsg (priv->db));
+		ret = FALSE;
+		sqlite3_free (error_msg);
+		goto out;
+	}
+out:
+	g_free (statement);
+	return ret;
+}
+
+/*
+ * ai_database_import:
+ */
+gboolean
+ai_database_import (AiDatabase *database, const gchar *filename, guint *value, GError **error)
+{
+	gboolean ret = TRUE;
+	gchar *contents = NULL;
+	gint rc;
+	gchar *error_msg;
+	gchar **lines = NULL;
+	guint i;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (!priv->locked, FALSE);
+
+	/* get all the sql from the source file */
+	ret = g_file_get_contents (filename, &contents, NULL, error);
+	if (!ret)
+		goto out;
+
+	/* split into lines, so we can do the query in smaller lumps */
+	lines = g_strsplit (contents, "\n", -1);
+	for (i=0; lines[i] != NULL; i++) {
+
+		/* copy all the applications and translations into remote db */
+		rc = sqlite3_exec (priv->db, lines[i], NULL, NULL, &error_msg);
+		if (rc == SQLITE_OK) {
+			/* success */
+			if (value != NULL)
+				(*value)++;
+		} else {
+			g_set_error (error, 1, 0, "SQL error: %s, '%s'\n", error_msg, lines[i]);
+			sqlite3_free (error_msg);
+			ret = FALSE;
+			goto out;
+		}
+	}
+out:
+	g_free (contents);
+	g_strfreev (lines);
+	return ret;
+}
+
+/*
+ * ai_database_add_translation:
+ */
+gboolean
+ai_database_add_translation (AiDatabase *database,
+			     const gchar *application_id,
+			     const gchar *name,
+			     const gchar *summary,
+			     const gchar *locale,
+			     GError **error)
+{
+	gboolean ret = TRUE;
+	gint rc;
+	gchar *statement;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (!priv->locked, FALSE);
+
+	/* generate SQL */
+	statement = sqlite3_mprintf ("INSERT INTO translations (application_id, application_name, application_summary, locale) "
+				     "VALUES (%Q, %Q, %Q, %Q);", application_id, name, summary, locale);
+	rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
+	if (rc) {
+		g_set_error (error, 1, 0, "Can't add translation: %s\n", sqlite3_errmsg (priv->db));
+		ret = FALSE;
+		goto out;
+	}
+out:
+	sqlite3_free (statement);
+	return ret;
+}
+
+/*
+ * ai_database_add_application:
+ */
+gboolean
+ai_database_add_application (AiDatabase *database,
+			     const gchar *application_id,
+			     const gchar *package,
+			     const gchar *categories,
+			     const gchar *repo,
+			     const gchar *icon,
+			     const gchar *name,
+			     const gchar *summary,
+			     GError **error)
+{
+	gboolean ret = TRUE;
+	gint rc;
+	gchar *statement;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (application_id != NULL, FALSE);
+	g_return_val_if_fail (package != NULL, FALSE);
+	g_return_val_if_fail (repo != NULL, FALSE);
+	g_return_val_if_fail (name != NULL, FALSE);
+
+	/* generate SQL */
+	statement = sqlite3_mprintf ("INSERT INTO applications (application_id, package_name, categories, "
+				     "repo_id, icon_name, application_name, application_summary) "
+				     "VALUES (%Q, %Q, %Q, %Q, %Q, %Q, %Q);",
+				     application_id, package, categories, repo, icon, name, summary);
+	rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
+	if (rc) {
+		g_set_error (error, 1, 0, "Can't add application: %s\n", sqlite3_errmsg (priv->db));
+		ret = FALSE;
+		goto out;
+	}
+out:
+	sqlite3_free (statement);
+	return ret;
+}
+
+typedef struct {
+	const gchar	*icondir;
+	AiDatabase	*database;
+} AiDatabaseTemp;
+
+/**
+ * ai_database_add_applications_sqlite_cb:
+ **/
+static gint
+ai_database_add_applications_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+{
+	guint i;
+	gchar *col;
+	gchar *value;
+	const gchar *application_id = NULL;
+	const gchar *package = NULL;
+	const gchar *categories = NULL;
+	const gchar *repo = NULL;
+	const gchar *icon = NULL;
+	const gchar *name = NULL;
+	const gchar *summary = NULL;
+	AiDatabaseTemp *temp = (AiDatabaseTemp *) data;
+	gboolean ret;
+	gint retval = 0;
+	GError *error = NULL;
+
+	for (i=0; i<(guint)argc; i++) {
+		col = col_name[i];
+		value = argv[i];
+		if (g_strcmp0 (col, "application_id") == 0)
+			application_id = value;
+		else if (g_strcmp0 (col, "package_name") == 0)
+			package = value;
+		else if (g_strcmp0 (col, "categories") == 0)
+			categories = value;
+		else if (g_strcmp0 (col, "repo_id") == 0)
+			repo = value;
+		else if (g_strcmp0 (col, "icon_name") == 0)
+			icon = value;
+		else if (g_strcmp0 (col, "application_name") == 0)
+			name = value;
+		else if (g_strcmp0 (col, "application_summary") == 0)
+			summary = value;
+	}
+
+	/* add to the target database */
+	ret = ai_database_add_application (temp->database, application_id, package, categories, repo, icon, name, summary, &error);
+	if (!ret) {
+		egg_warning ("failed to add: %s", error->message);
+		g_error_free (error);
+		retval = 1;
+		goto out;
+	}
+out:
+	return retval;
+}
+
+/**
+ * ai_database_add_translations_sqlite_cb:
+ **/
+static gint
+ai_database_add_translations_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+{
+	guint i;
+	gchar *col;
+	gchar *value;
+	const gchar *application_id = NULL;
+	const gchar *name = NULL;
+	const gchar *summary = NULL;
+	const gchar *locale = NULL;
+	AiDatabaseTemp *temp = (AiDatabaseTemp *) data;
+	gboolean ret;
+	gint retval = 0;
+	GError *error = NULL;
+
+	for (i=0; i<(guint)argc; i++) {
+		col = col_name[i];
+		value = argv[i];
+		if (g_strcmp0 (col, "application_id") == 0)
+			application_id = value;
+		else if (g_strcmp0 (col, "locale") == 0)
+			locale = value;
+		else if (g_strcmp0 (col, "application_name") == 0)
+			name = value;
+		else if (g_strcmp0 (col, "application_summary") == 0)
+			summary = value;
+	}
+
+	/* add to the target database */
+	ret = ai_database_add_translation (temp->database, application_id, name, summary, locale, &error);
+	if (!ret) {
+		egg_warning ("failed to add: %s", error->message);
+		g_error_free (error);
+		retval = 1;
+		goto out;
+	}
+out:
+	return retval;
+}
+
+/**
+ * ai_database_copy_icons_sqlite_cb:
+ **/
+static gint
+ai_database_copy_icons_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+{
+	guint i;
+	gchar *col;
+	gchar *value;
+	const gchar *application_id = NULL;
+	const gchar *icon_name = NULL;
+	gchar *path;
+	gchar *dest;
+	GFile *file;
+	GFile *remote;
+	AiDatabaseTemp *temp = (AiDatabaseTemp *) data;
+	gboolean ret;
+	gchar *icon_name_full;
+	GError *error = NULL;
+
+	for (i=0; i<(guint)argc; i++) {
+		col = col_name[i];
+		value = argv[i];
+		if (g_strcmp0 (col, "application_id") == 0)
+			application_id = value;
+		else if (g_strcmp0 (col, "icon_name") == 0)
+			icon_name = value;
+	}
+	if (application_id == NULL || icon_name == NULL)
+		goto out;
+
+	egg_debug ("copying icon %s for application: %s", icon_name, application_id);
+	icon_name_full = g_strdup_printf ("%s.png", icon_name);
+
+	/* copy all icon sizes if they exist */
+	for (i=0; icon_sizes[i] != NULL; i++) {
+		path = g_build_filename (temp->icondir, icon_sizes[i], icon_name_full, NULL);
+		ret = g_file_test (path, G_FILE_TEST_EXISTS);
+		if (ret) {
+			dest = g_build_filename (temp->database->priv->icon_path, icon_sizes[i], icon_name_full, NULL);
+			egg_debug ("copying file %s to %s", path, dest);
+			file = g_file_new_for_path (path);
+			remote = g_file_new_for_path (dest);
+			ret = g_file_copy (file, remote, G_FILE_COPY_TARGET_DEFAULT_PERMS, NULL, NULL, NULL, &error);
+			if (!ret) {
+				egg_warning ("cannot copy %s: %s", path, error->message);
+				g_clear_error (&error);
+			}
+			g_object_unref (file);
+			g_object_unref (remote);
+			g_free (dest);
+		} else {
+			egg_debug ("failed to find icon %s", path);
+		}
+		g_free (path);
+	}
+	g_free (icon_name_full);
+out:
+	return 0;
+}
+
+/*
+ * ai_database_import_by_name:
+ */
+gboolean
+ai_database_import_by_name (AiDatabase *database,
+			    const gchar *filename,
+			    const gchar *icondir,
+			    const gchar *name,
+			    guint *value,
+			    GError **error)
+{
+	gboolean ret = TRUE;
+	gint rc;
+	gchar *statement;
+	gchar *error_msg;
+	sqlite3	*foreign_db;
+	AiDatabaseTemp *temp = NULL;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (filename != NULL, FALSE);
+	g_return_val_if_fail (name != NULL, FALSE);
+
+	/* open database */
+	rc = sqlite3_open (filename, &foreign_db);
+	if (rc) {
+		g_set_error (error, 1, 0, "Can't open database: %s\n", sqlite3_errmsg (priv->db));
+		ret = FALSE;
+		goto out;
+	}
+
+	/* use a temp object as we can only pass one pointer */
+	temp = g_new0 (AiDatabaseTemp, 1);
+	temp->icondir = icondir;
+	temp->database = database;
+
+	/* select all the application data for these packages */
+	statement = g_strdup_printf ("SELECT application_id, package_name, categories, repo_id, icon_name, application_name, application_summary "
+				     "FROM applications WHERE package_name = '%s'", name);
+	rc = sqlite3_exec (foreign_db, statement, ai_database_add_applications_sqlite_cb, (void*) temp, &error_msg);
+	g_free (statement);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0, "SQL error: %s\n", error_msg);
+		sqlite3_free (error_msg);
+		ret = FALSE;
+		goto out;
+	}
+
+	/* select all the translation data for these packages */
+	statement = g_strdup_printf ("SELECT application_id, application_name, application_summary, locale FROM translations WHERE EXISTS ( "
+				     "SELECT applications.application_id FROM applications WHERE "
+				     "applications.application_id = applications.application_id AND applications.package_name = '%s')", name);
+	rc = sqlite3_exec (foreign_db, statement, ai_database_add_translations_sqlite_cb, (void*) temp, &error_msg);
+	g_free (statement);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0, "SQL error: %s\n", error_msg);
+		sqlite3_free (error_msg);
+		ret = FALSE;
+		goto out;
+	}
+
+	/* copy all the icons */
+	if (icondir != NULL) {
+		statement = g_strdup_printf ("SELECT application_id, icon_name FROM applications WHERE package_name = '%s'", name);
+		rc = sqlite3_exec (foreign_db, statement, ai_database_copy_icons_sqlite_cb, (void*) icondir, &error_msg);
+		g_free (statement);
+		if (rc != SQLITE_OK) {
+			g_set_error (error, 1, 0, "SQL error: %s\n", error_msg);
+			sqlite3_free (error_msg);
+			ret = FALSE;
+			goto out;
+		}
+	}
+
+	/* get additions */
+	if (value != NULL)
+		*value = 1;
+out:
+	g_free (temp);
+	sqlite3_close (foreign_db);
+	return ret;
+}
+
+/*
+ * ai_database_import_by_repo:
+ */
+gboolean
+ai_database_import_by_repo (AiDatabase *database,
+			    const gchar *filename,
+			    const gchar *icondir,
+			    const gchar *repo,
+			    guint *value,
+			    GError **error)
+{
+	gboolean ret = TRUE;
+	gint rc;
+	gchar *statement;
+	gchar *error_msg;
+	sqlite3	*foreign_db;
+	AiDatabaseTemp *temp = NULL;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (filename != NULL, FALSE);
+	g_return_val_if_fail (repo != NULL, FALSE);
+
+	/* database does not exist */
+	if (!g_file_test (filename, G_FILE_TEST_EXISTS)) {
+		g_set_error (error, 1, 0, "The source filename '%s' could not be found", filename);
+		ret = FALSE;
+		goto out;
+	}
+
+	/* icondir do not exist */
+	if (icondir != NULL && !g_file_test (icondir, G_FILE_TEST_IS_DIR)) {
+		g_set_error (error, 1, 0, "The icon directory '%s' could not be found", icondir);
+		ret = FALSE;
+		goto out;
+	}
+
+	/* open database */
+	rc = sqlite3_open (priv->filename, &foreign_db);
+	if (rc) {
+		g_set_error (error, 1, 0, "Can't open database: %s\n", sqlite3_errmsg (priv->db));
+		ret = FALSE;
+		goto out;
+	}
+
+	/* use a temp object as we can only pass one pointer */
+	temp = g_new0 (AiDatabaseTemp, 1);
+	temp->icondir = icondir;
+	temp->database = database;
+
+	/* select all the application data for these packages */
+	statement = g_strdup_printf ("SELECT application_id, package_name, categories, repo_id, icon_name, application_name, application_summary "
+				     "FROM applications WHERE repo_id = '%s'", repo);
+	rc = sqlite3_exec (foreign_db, statement, ai_database_add_applications_sqlite_cb, (void*) temp, &error_msg);
+	g_free (statement);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0, "SQL error: %s\n", error_msg);
+		sqlite3_free (error_msg);
+		ret = FALSE;
+		goto out;
+	}
+
+	/* select all the translation data for these packages */
+	statement = g_strdup_printf ("SELECT application_id, application_name, application_summary, locale FROM translations WHERE EXISTS ( "
+				     "SELECT applications.application_id FROM applications WHERE "
+				     "applications.application_id = applications.application_id AND applications.repo_id = '%s')", repo);
+	rc = sqlite3_exec (foreign_db, statement, ai_database_add_translations_sqlite_cb, (void*) temp, &error_msg);
+	g_free (statement);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0, "SQL error: %s\n", error_msg);
+		sqlite3_free (error_msg);
+		ret = FALSE;
+		goto out;
+	}
+
+	/* copy all the icons */
+	if (icondir != NULL) {
+		statement = g_strdup_printf ("SELECT application_id, icon_name FROM applications WHERE repo_id = '%s'", repo);
+		rc = sqlite3_exec (foreign_db, statement, ai_database_copy_icons_sqlite_cb, (void*) icondir, &error_msg);
+		g_free (statement);
+		if (rc != SQLITE_OK) {
+			g_set_error (error, 1, 0, "SQL error: %s\n", error_msg);
+			sqlite3_free (error_msg);
+			ret = FALSE;
+			goto out;
+		}
+	}
+
+	/* get additions */
+	if (value != NULL)
+		*value = 1;
+out:
+	g_free (temp);
+	sqlite3_close (foreign_db);
+	return ret;
+}
 
 /*
  * ai_database_get_property:
