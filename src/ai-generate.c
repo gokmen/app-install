@@ -27,6 +27,8 @@
 #include <gio/gio.h>
 
 #include "ai-common.h"
+#include "ai-database.h"
+
 #include "egg-debug.h"
 
 static const gchar *icon_sizes[] = { "22x22", "24x24", "32x32", "48x48", "scalable", NULL };

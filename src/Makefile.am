@@ -29,6 +29,8 @@ app_install_extract_package_CFLAGS = $(WARNINGFLAGS_C)
 app_install_create_SOURCES =				\
 	egg-debug.c					\
 	egg-debug.h					\
+	ai-database.c					\
+	ai-database.h					\
 	ai-create.c					\
 	ai-common.h					\
 	$(NULL)
@@ -38,6 +40,8 @@ app_install_create_CFLAGS = $(WARNINGFLAGS_C)
 app_install_remove_SOURCES =				\
 	egg-debug.c					\
 	egg-debug.h					\
+	ai-database.c					\
+	ai-database.h					\
 	ai-remove.c					\
 	ai-common.h					\
 	$(NULL)
@@ -47,6 +51,8 @@ app_install_remove_CFLAGS = $(WARNINGFLAGS_C)
 app_install_add_SOURCES =				\
 	egg-debug.c					\
 	egg-debug.h					\
+	ai-database.c					\
+	ai-database.h					\
 	ai-add.c					\
 	ai-common.h					\
 	$(NULL)
@@ -56,6 +62,8 @@ app_install_add_CFLAGS = $(WARNINGFLAGS_C)
 app_install_generate_SOURCES =				\
 	egg-debug.c					\
 	egg-debug.h					\
+	ai-database.c					\
+	ai-database.h					\
 	ai-generate.c					\
 	ai-common.h					\
 	$(NULL)

@@ -27,6 +27,8 @@
 #include <gio/gio.h>
 
 #include "ai-common.h"
+#include "ai-database.h"
+
 #include "egg-debug.h"
 
 static const gchar *icon_sizes[] = { "22x22", "24x24", "32x32", "48x48", "scalable", NULL };
@@ -112,7 +114,7 @@ main (int argc, char *argv[])
 	gboolean verbose = FALSE;
 	GOptionContext *context;
 	gint retval = 0;
-	gchar *cache = NULL;
+	gchar *database = NULL;
 	gchar *repo = NULL;
 	gchar *source = NULL;
 	gchar *icondir = NULL;
@@ -132,12 +134,12 @@ main (int argc, char *argv[])
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
 		  _("Show extra debugging information"), NULL },
-		{ "cache", 'c', 0, G_OPTION_ARG_STRING, &cache,
+		{ "database", 'd', 0, G_OPTION_ARG_STRING, &database,
 		  /* TRANSLATORS: if we are specifing a out-of-tree database */
-		  _("Main cache file to use (if not specififed, default is used)"), NULL},
+		  _("Database file to use (if not specififed, default is used)"), NULL},
 		{ "source", 's', 0, G_OPTION_ARG_STRING, &source,
 		  /* TRANSLATORS: the source database, typically used for adding */
-		  _("Source cache file to add to the main database"), NULL},
+		  _("Source database file to add to the main database"), NULL},
 		{ "icondir", 'i', 0, G_OPTION_ARG_STRING, &icondir,
 		  /* TRANSLATORS: the icon directory */
 		  _("Icon directory"), NULL},
@@ -162,12 +164,12 @@ main (int argc, char *argv[])
 	g_type_init ();
 	egg_debug_init (verbose);
 
-	egg_debug ("cache=%s, source=%s, repo=%s, icondir=%s", cache, source, repo, icondir);
+	egg_debug ("database=%s, source=%s, repo=%s, icondir=%s", database, source, repo, icondir);
 
 	/* use default */
-	if (cache == NULL) {
-		egg_debug ("cache not specified, using %s", AI_DEFAULT_DATABASE);
-		cache = g_strdup (AI_DEFAULT_DATABASE);
+	if (database == NULL) {
+		egg_debug ("database not specified, using %s", AI_DEFAULT_DATABASE);
+		database = g_strdup (AI_DEFAULT_DATABASE);
 	}
 
 	if (repo == NULL) {
@@ -192,7 +194,7 @@ main (int argc, char *argv[])
 	}
 
 	/* check that there are no existing entries from this repo */
-	rc = sqlite3_open (cache, &db);
+	rc = sqlite3_open (database, &db);
 	if (rc) {
 		egg_warning ("Can't open database: %s\n", sqlite3_errmsg (db));
 		retval = 1;
@@ -275,7 +277,7 @@ out:
 		sqlite3_close (db);
 	g_strfreev (lines);
 	g_free (contents);
-	g_free (cache);
+	g_free (database);
 	g_free (repo);
 	g_free (source);
 	g_free (icondir);

@@ -9,4 +9,5 @@ app-install-extract-package
 app-install-compose
 *.sqldata
 *.tar.bz2
+*.db
 

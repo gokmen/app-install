@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
  *
- * Copyright (C) 2009 Richard Hughes <richard@hughsie.com>
+ * Copyright (C) 2009-2010 Richard Hughes <richard@hughsie.com>
  *
  * Licensed under the GNU General Public License Version 2
  *
@@ -21,11 +21,11 @@
 
 #include "config.h"
 
-#include <string.h>
 #include <glib/gi18n.h>
-#include <sqlite3.h>
 
 #include "ai-common.h"
+#include "ai-database.h"
+
 #include "egg-debug.h"
 
 /**
@@ -36,19 +36,18 @@ main (int argc, char *argv[])
 {
 	gboolean verbose = FALSE;
 	GOptionContext *context;
-	gchar *cache = NULL;
-	gboolean create_file;
-	const gchar *statement;
-	sqlite3 *db = NULL;
+	gchar *database = NULL;
 	gint retval = 0;
-	gint rc;
+	AiDatabase *db = NULL;
+	gboolean ret;
+	GError *error = NULL;
 
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
 		  _("Show extra debugging information"), NULL },
-		{ "cache", 'c', 0, G_OPTION_ARG_STRING, &cache,
+		{ "database", 'd', 0, G_OPTION_ARG_STRING, &database,
 		  /* TRANSLATORS: if we are specifing a out-of-tree database */
-		  _("Main database file to use (if not specififed, default is used)"), NULL},
+		  _("Database file to use (if not specififed, default is used)"), NULL},
 		{ NULL}
 	};
 
@@ -64,70 +63,41 @@ main (int argc, char *argv[])
 	g_option_context_parse (context, &argc, &argv, NULL);
 	g_option_context_free (context);
 
+	g_type_init ();
 	egg_debug_init (verbose);
 
-	/* use default */
-	if (cache == NULL) {
-		egg_debug ("cache not specified, using %s", AI_DEFAULT_DATABASE);
-		cache = g_strdup (AI_DEFAULT_DATABASE);
-	}
-
-	/* if the database file was not installed (or was nuked) recreate it */
-	create_file = g_file_test (cache, G_FILE_TEST_EXISTS);
-	if (create_file == TRUE) {
-		egg_warning ("already exists");
-		goto out;
-	}
-
 	/* open database */
-	rc = sqlite3_open (cache, &db);
-	if (rc) {
-		egg_warning ("Can't open database: %s\n", sqlite3_errmsg (db));
+	db = ai_database_new ();
+	ai_database_set_filename (db, database);
+	ret = ai_database_open (db, &error);
+	if (!ret) {
+		g_print ("%s: %s\n", _("Failed to open"), error->message);
+		g_error_free (error);
 		retval = 1;
 		goto out;
 	}
 
-	/* don't sync */
-	statement = "PRAGMA synchronous=OFF";
-	rc = sqlite3_exec (db, statement, NULL, NULL, NULL);
-	if (rc) {
-		egg_warning ("Can't turn off sync: %s\n", sqlite3_errmsg (db));
+	/* create it */
+	ret = ai_database_create (db, &error);
+	if (!ret) {
+		g_print ("%s: %s\n", _("Failed to create"), error->message);
+		g_error_free (error);
 		retval = 1;
 		goto out;
 	}
 
-	/* create */
-	if (create_file == FALSE) {
-		statement = "CREATE TABLE applications ("
-			    "application_id TEXT primary key,"
-			    "package_name TEXT,"
-			    "categories TEXT,"
-			    "repo_id TEXT,"
-			    "icon_name TEXT,"
-			    "application_name TEXT,"
-			    "application_summary TEXT);";
-		rc = sqlite3_exec (db, statement, NULL, NULL, NULL);
-		if (rc) {
-			egg_warning ("Can't create applications table: %s\n", sqlite3_errmsg (db));
-			retval = 1;
-			goto out;
-		}
-		statement = "CREATE TABLE translations ("
-			    "application_id TEXT,"
-			    "application_name TEXT,"
-			    "application_summary TEXT,"
-			    "locale TEXT);";
-		rc = sqlite3_exec (db, statement, NULL, NULL, NULL);
-		if (rc) {
-			egg_warning ("Can't create translations table: %s\n", sqlite3_errmsg (db));
-			retval = 1;
-			goto out;
-		}
+	/* close it */
+	ret = ai_database_close (db, &error);
+	if (!ret) {
+		g_print ("%s: %s\n", _("Failed to close"), error->message);
+		g_error_free (error);
+		retval = 1;
+		goto out;
 	}
 out:
 	if (db != NULL)
-		sqlite3_close (db);
-	g_free (cache);
+		g_object_unref (db);
+	g_free (database);
 	return retval;
 }
 
