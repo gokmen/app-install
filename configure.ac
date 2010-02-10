@@ -93,6 +93,17 @@ PKG_CHECK_MODULES(SQLITE, sqlite3)
 AC_SUBST(SQLITE_CFLAGS)
 AC_SUBST(SQLITE_LIBS)
 
+AC_CHECK_HEADERS(archive.h,
+		 HAVE_ARCHIVE_H="yes",
+		 HAVE_ARCHIVE_H="no")
+if test "x$HAVE_ARCHIVE_H" = "xyes"; then
+		AC_DEFINE(HAVE_ARCHIVE_H)
+		ARCHIVE_LIBS=-larchive
+		AC_SUBST(ARCHIVE_LIBS)
+else
+	AC_MSG_ERROR([libarchive support required])
+fi
+
 dnl ---------------------------------------------------------------------------
 dnl - Make paths available for source files
 dnl ---------------------------------------------------------------------------

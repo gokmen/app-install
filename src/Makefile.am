@@ -4,17 +4,27 @@ AUTOMAKE_OPTIONS = 1.7
 INCLUDES =						\
 	$(GLIB_CFLAGS)					\
 	$(GIO_CFLAGS)					\
+	$(ARCHIVE_CFLAGS)				\
 	$(SQLITE_CFLAGS)				\
 	-DPACKAGE_LOCALE_DIR=\"$(localedir)\"		\
 	-DSYSCONFDIR=\""$(sysconfdir)"\" 		\
 	-DDATADIR=\""$(datadir)"\" 			\
+	-DBINDIR=\""$(bindir)"\" 			\
 	-DLOCALSTATEDIR=\""$(localstatedir)"\" 		\
 	-DEGG_LOG_FILE=\""$(LOG_DIR)/app-install"\"	\
 	-DEGG_VERBOSE="\"VERBOSE\""			\
 	-DEGG_LOGGING="\"LOGGING\""			\
 	-DEGG_CONSOLE="\"CONSOLE\""
 
-sbin_PROGRAMS = app-install-create app-install-remove app-install-add app-install-generate
+sbin_PROGRAMS = app-install-create app-install-remove app-install-add
+
+bin_PROGRAMS = app-install-extract-package app-install-generate
+
+app_install_extract_package_SOURCES =			\
+	ai-extract-package.c				\
+	$(NULL)
+app_install_extract_package_LDADD = $(GLIB_LIBS) $(ARCHIVE_LIBS)
+app_install_extract_package_CFLAGS = $(WARNINGFLAGS_C)
 
 app_install_create_SOURCES =				\
 	egg-debug.c					\

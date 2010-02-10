@@ -5,5 +5,8 @@ app-install-add
 app-install-create
 app-install-generate
 app-install-remove
+app-install-extract-package
+app-install-compose
 *.sqldata
+*.tar.bz2
 
