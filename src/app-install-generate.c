@@ -364,12 +364,12 @@ main (int argc, char *argv[])
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
 		  _("Show extra debugging information"), NULL },
-		{ "root", 's', 0, G_OPTION_ARG_STRING, &root,
+		{ "root", 'r', 0, G_OPTION_ARG_STRING, &root,
 		  /* TRANSLATORS: the root database, typically used for adding */
 		  _("Source cache file to add to the main database"), NULL},
 		{ "desktopfile", 'i', 0, G_OPTION_ARG_STRING, &desktopfile,
 		  /* TRANSLATORS: the icon directory */
-		  _("Icon directory"), NULL},
+		  _("Desktop file in the root"), NULL},
 		{ "package", 'n', 0, G_OPTION_ARG_STRING, &package,
 		  /* TRANSLATORS: the repo of the software root, e.g. fedora */
 		  _("Name of the package"), NULL},
@@ -446,7 +446,11 @@ main (int argc, char *argv[])
 	/* use this to dump the data */
 	string = g_string_new ("");
 
-	filename = g_build_filename (root, "/usr/share/applications", desktopfile, NULL);
+	if (desktopfile[0] != '/') {
+		filename = g_build_filename (root, "/usr/share/applications", desktopfile, NULL);
+	} else {
+		filename = g_build_filename (root, desktopfile, NULL);
+	}
 	egg_debug ("filename: %s", filename);
 
 	/* get app-id */
