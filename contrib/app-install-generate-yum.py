@@ -145,7 +145,7 @@ def main():
         for instfile in desktop_files:
             print 'generating sql for', instfile
             cwd = os.getcwd()
-            cmd = "app-install-generate --outputdir=%s --repo=%s --root=%s --desktopfile=%s --package=%s" % (dist, pkg.repoid, dist + '/root', instfile, pkg.name)
+            cmd = "app-install-generate --outputdir=%s --repo=%s --root=%s --desktopfile=%s --package=%s" % (dist, pkg.repoid, directory, instfile, pkg.name)
             p = subprocess.Popen(cmd, shell=True, cwd=cwd, stdout=subprocess.PIPE)
             p.wait()
             if p.returncode:
