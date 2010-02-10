@@ -35,7 +35,6 @@ if test "$GCC" = "yes"; then
 	WARNINGFLAGS_C="$WARNINGFLAGS_C -Wcast-align -Wno-uninitialized"
 	WARNINGFLAGS_C="$WARNINGFLAGS_C -Wmissing-declarations"
 	WARNINGFLAGS_C="$WARNINGFLAGS_C -Wredundant-decls"
-	WARNINGFLAGS_C="$WARNINGFLAGS_C -Wmissing-noreturn"
 	WARNINGFLAGS_C="$WARNINGFLAGS_C -Wpointer-arith"
 	WARNINGFLAGS_C="$WARNINGFLAGS_C -Wcast-align"
 	WARNINGFLAGS_C="$WARNINGFLAGS_C -Wwrite-strings"
