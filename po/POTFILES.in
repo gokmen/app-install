@@ -1,5 +1,5 @@
-src/app-install-add.c
-src/app-install-create.c
-src/app-install-generate.c
-src/app-install-remove.c
+src/ai-add.c
+src/ai-create.c
+src/ai-generate.c
+src/ai-remove.c
 

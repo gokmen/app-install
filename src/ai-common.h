@@ -22,7 +22,7 @@
 #ifndef __PK_APP_INSTALL_COMMON_H
 #define __PK_APP_INSTALL_COMMON_H
 
-#define APP_INSTALL_DEFAULT_DATABASE		LOCALSTATEDIR "/lib/app-install/desktop.db"
-#define APP_INSTALL_DEFAULT_ICONDIR		DATADIR "/app-install/icons"
+#define AI_DEFAULT_DATABASE		LOCALSTATEDIR "/lib/app-install/desktop.db"
+#define AI_DEFAULT_ICONDIR		DATADIR "/app-install/icons"
 
 #endif /* __PK_APP_INSTALL_COMMON_H */

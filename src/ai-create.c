@@ -25,7 +25,7 @@
 #include <glib/gi18n.h>
 #include <sqlite3.h>
 
-#include "app-install-common.h"
+#include "ai-common.h"
 #include "egg-debug.h"
 
 /**
@@ -68,8 +68,8 @@ main (int argc, char *argv[])
 
 	/* use default */
 	if (cache == NULL) {
-		egg_debug ("cache not specified, using %s", APP_INSTALL_DEFAULT_DATABASE);
-		cache = g_strdup (APP_INSTALL_DEFAULT_DATABASE);
+		egg_debug ("cache not specified, using %s", AI_DEFAULT_DATABASE);
+		cache = g_strdup (AI_DEFAULT_DATABASE);
 	}
 
 	/* if the database file was not installed (or was nuked) recreate it */

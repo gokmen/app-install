@@ -26,7 +26,7 @@
 #include <sqlite3.h>
 #include <gio/gio.h>
 
-#include "app-install-common.h"
+#include "ai-common.h"
 #include "egg-debug.h"
 
 static const gchar *icon_sizes[] = { "22x22", "24x24", "32x32", "48x48", "scalable", NULL };
@@ -38,10 +38,10 @@ typedef struct {
 } AppInstallData;
 
 /**
- * app_install_generate_desktop_data_free:
+ * ai_generate_desktop_data_free:
  **/
 static void
-app_install_generate_desktop_data_free (AppInstallData *data)
+ai_generate_desktop_data_free (AppInstallData *data)
 {
 	g_free (data->key);
 	g_free (data->value);
@@ -50,10 +50,10 @@ app_install_generate_desktop_data_free (AppInstallData *data)
 }
 
 /**
- * app_install_generate_create_icon_directories:
+ * ai_generate_create_icon_directories:
  **/
 static gboolean
-app_install_generate_create_icon_directories (const gchar *directory)
+ai_generate_create_icon_directories (const gchar *directory)
 {
 	gboolean ret;
 	GError *error = NULL;
@@ -95,10 +95,10 @@ out:
 }
 
 /**
- * app_install_generate_get_desktop_data:
+ * ai_generate_get_desktop_data:
  **/
 static GPtrArray *
-app_install_generate_get_desktop_data (const gchar *filename)
+ai_generate_get_desktop_data (const gchar *filename)
 {
 	gboolean ret;
 	GError *error = NULL;
@@ -144,10 +144,10 @@ out:
 }
 
 /**
- * app_install_generate_get_value_for_locale:
+ * ai_generate_get_value_for_locale:
  **/
 static gchar *
-app_install_generate_get_value_for_locale (GPtrArray *data, const gchar *key, const gchar *locale)
+ai_generate_get_value_for_locale (GPtrArray *data, const gchar *key, const gchar *locale)
 {
 	guint i;
 	gchar *value = NULL;
@@ -165,10 +165,10 @@ app_install_generate_get_value_for_locale (GPtrArray *data, const gchar *key, co
 }
 
 /**
- * app_install_generate_get_locales:
+ * ai_generate_get_locales:
  **/
 static GPtrArray *
-app_install_generate_get_locales (GPtrArray *data)
+ai_generate_get_locales (GPtrArray *data)
 {
 	guint i, j;
 	GPtrArray *locales;
@@ -196,10 +196,10 @@ app_install_generate_get_locales (GPtrArray *data)
 }
 
 /**
- * app_install_generate_get_application_id:
+ * ai_generate_get_application_id:
  **/
 static gchar *
-app_install_generate_get_application_id (const gchar *filename)
+ai_generate_get_application_id (const gchar *filename)
 {
 	gchar *find;
 	gchar *application_id;
@@ -212,10 +212,10 @@ app_install_generate_get_application_id (const gchar *filename)
 }
 
 /**
- * app_install_generate_applications_sql:
+ * ai_generate_applications_sql:
  **/
 static gchar *
-app_install_generate_applications_sql (GPtrArray *data, const gchar *repo, const gchar *package, const gchar *application_id)
+ai_generate_applications_sql (GPtrArray *data, const gchar *repo, const gchar *package, const gchar *application_id)
 {
 	GString *sql;
 	gchar *name = NULL;
@@ -225,10 +225,10 @@ app_install_generate_applications_sql (GPtrArray *data, const gchar *repo, const
 	gchar *escaped;
 
 	sql = g_string_new ("");
-	name = app_install_generate_get_value_for_locale (data, "Name", NULL);
-	icon_name = app_install_generate_get_value_for_locale (data, "Icon", NULL);
-	comment = app_install_generate_get_value_for_locale (data, "Comment", NULL);
-	categories = app_install_generate_get_value_for_locale (data, "Categories", NULL);
+	name = ai_generate_get_value_for_locale (data, "Name", NULL);
+	icon_name = ai_generate_get_value_for_locale (data, "Icon", NULL);
+	comment = ai_generate_get_value_for_locale (data, "Comment", NULL);
+	categories = ai_generate_get_value_for_locale (data, "Categories", NULL);
 
 	/* remove invalid icons */
 	if (icon_name != NULL &&
@@ -256,10 +256,10 @@ app_install_generate_applications_sql (GPtrArray *data, const gchar *repo, const
 }
 
 /**
- * app_install_generate_translations_sql:
+ * ai_generate_translations_sql:
  **/
 static gchar *
-app_install_generate_translations_sql (GPtrArray *data, GPtrArray *locales, const gchar *application_id)
+ai_generate_translations_sql (GPtrArray *data, GPtrArray *locales, const gchar *application_id)
 {
 	GString *sql;
 	gchar *name = NULL;
@@ -271,8 +271,8 @@ app_install_generate_translations_sql (GPtrArray *data, GPtrArray *locales, cons
 	sql = g_string_new ("");
 	for (i=0; i<locales->len; i++) {
 		locale = g_ptr_array_index (locales, i);
-		name = app_install_generate_get_value_for_locale (data, "Name", locale);
-		comment = app_install_generate_get_value_for_locale (data, "Comment", locale);
+		name = ai_generate_get_value_for_locale (data, "Name", locale);
+		comment = ai_generate_get_value_for_locale (data, "Comment", locale);
 
 		/* append the application data to the sql string if either not null */
 		if (name != NULL || comment != NULL) {
@@ -290,10 +290,10 @@ app_install_generate_translations_sql (GPtrArray *data, GPtrArray *locales, cons
 }
 
 /**
- * app_install_generate_copy_icons:
+ * ai_generate_copy_icons:
  **/
 static gboolean
-app_install_generate_copy_icons (const gchar *root, const gchar *directory, const gchar *icon_name)
+ai_generate_copy_icons (const gchar *root, const gchar *directory, const gchar *icon_name)
 {
 	gboolean ret;
 	GError *error = NULL;
@@ -441,7 +441,7 @@ main (int argc, char *argv[])
 
 	/* generate the sub directories in the outputdir if they dont exist */
 	icondir = g_build_filename (outputdir, "icons", NULL);
-	app_install_generate_create_icon_directories (icondir);
+	ai_generate_create_icon_directories (icondir);
 
 	/* use this to dump the data */
 	string = g_string_new ("");
@@ -454,10 +454,10 @@ main (int argc, char *argv[])
 	egg_debug ("filename: %s", filename);
 
 	/* get app-id */
-	application_id = app_install_generate_get_application_id (filename);
+	application_id = ai_generate_get_application_id (filename);
 
 	/* extract data */
-	data = app_install_generate_get_desktop_data (filename);
+	data = ai_generate_get_desktop_data (filename);
 	if (data == NULL) {
 		g_print ("Could not get desktop data from %s\n", filename);
 		retval = 1;
@@ -465,12 +465,12 @@ main (int argc, char *argv[])
 	}
 
 	/* form application SQL */
-	sql = app_install_generate_applications_sql (data, repo, package, application_id);
+	sql = ai_generate_applications_sql (data, repo, package, application_id);
 	g_string_append_printf (string, "%s", sql);
 	g_free (sql);
 
 	/* get list of locales in this file */
-	locales = app_install_generate_get_locales (data);
+	locales = ai_generate_get_locales (data);
 	if (locales == NULL) {
 		g_print ("Could not get locale data from %s\n", filename);
 		retval = 1;
@@ -478,14 +478,14 @@ main (int argc, char *argv[])
 	}
 
 	/* form translations SQL */
-	sql = app_install_generate_translations_sql (data, locales, application_id);
+	sql = ai_generate_translations_sql (data, locales, application_id);
 	g_string_append_printf (string, "%s\n", sql);
 	g_free (sql);
 
 	/* copy icons */
-	icon_name = app_install_generate_get_value_for_locale (data, "Icon", NULL);
+	icon_name = ai_generate_get_value_for_locale (data, "Icon", NULL);
 	if (icon_name != NULL && !g_str_has_suffix (icon_name, ".png"))
-		app_install_generate_copy_icons (root, icondir, icon_name);
+		ai_generate_copy_icons (root, icondir, icon_name);
 
 	/* print to screen */
 	g_print ("%s", string->str);
@@ -498,7 +498,7 @@ out:
 		g_ptr_array_free (locales, TRUE);
 	}
 	if (data != NULL) {
-		g_ptr_array_foreach (data, (GFunc) app_install_generate_desktop_data_free, NULL);
+		g_ptr_array_foreach (data, (GFunc) ai_generate_desktop_data_free, NULL);
 		g_ptr_array_free (data, TRUE);
 	}
 	g_free (icondir);

@@ -29,8 +29,8 @@ app_install_extract_package_CFLAGS = $(WARNINGFLAGS_C)
 app_install_create_SOURCES =				\
 	egg-debug.c					\
 	egg-debug.h					\
-	app-install-create.c				\
-	app-install-common.h				\
+	ai-create.c					\
+	ai-common.h					\
 	$(NULL)
 app_install_create_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS)
 app_install_create_CFLAGS = $(WARNINGFLAGS_C)
@@ -38,8 +38,8 @@ app_install_create_CFLAGS = $(WARNINGFLAGS_C)
 app_install_remove_SOURCES =				\
 	egg-debug.c					\
 	egg-debug.h					\
-	app-install-remove.c				\
-	app-install-common.h				\
+	ai-remove.c					\
+	ai-common.h					\
 	$(NULL)
 app_install_remove_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS)
 app_install_remove_CFLAGS = $(WARNINGFLAGS_C)
@@ -47,8 +47,8 @@ app_install_remove_CFLAGS = $(WARNINGFLAGS_C)
 app_install_add_SOURCES =				\
 	egg-debug.c					\
 	egg-debug.h					\
-	app-install-add.c				\
-	app-install-common.h				\
+	ai-add.c					\
+	ai-common.h					\
 	$(NULL)
 app_install_add_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS)
 app_install_add_CFLAGS = $(WARNINGFLAGS_C)
@@ -56,8 +56,8 @@ app_install_add_CFLAGS = $(WARNINGFLAGS_C)
 app_install_generate_SOURCES =				\
 	egg-debug.c					\
 	egg-debug.h					\
-	app-install-generate.c				\
-	app-install-common.h				\
+	ai-generate.c					\
+	ai-common.h					\
 	$(NULL)
 app_install_generate_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS)
 app_install_generate_CFLAGS = $(WARNINGFLAGS_C)

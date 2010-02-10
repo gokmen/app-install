@@ -26,16 +26,16 @@
 #include <sqlite3.h>
 #include <gio/gio.h>
 
-#include "app-install-common.h"
+#include "ai-common.h"
 #include "egg-debug.h"
 
 static const gchar *icon_sizes[] = { "22x22", "24x24", "32x32", "48x48", "scalable", NULL };
 
 /**
- * app_install_add_get_number_sqlite_cb:
+ * ai_add_get_number_sqlite_cb:
  **/
 static gint
-app_install_add_get_number_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+ai_add_get_number_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
 	guint *number = (guint *) data;
 	(*number)++;
@@ -43,10 +43,10 @@ app_install_add_get_number_sqlite_cb (void *data, gint argc, gchar **argv, gchar
 }
 
 /**
- * app_install_add_copy_icons_sqlite_cb:
+ * ai_add_copy_icons_sqlite_cb:
  **/
 static gint
-app_install_add_copy_icons_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+ai_add_copy_icons_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
 	guint i;
 	gchar *col;
@@ -81,7 +81,7 @@ app_install_add_copy_icons_sqlite_cb (void *data, gint argc, gchar **argv, gchar
 		path = g_build_filename (icondir, icon_sizes[i], icon_name_full, NULL);
 		ret = g_file_test (path, G_FILE_TEST_EXISTS);
 		if (ret) {
-			dest = g_build_filename (APP_INSTALL_DEFAULT_ICONDIR, icon_sizes[i], icon_name_full, NULL);
+			dest = g_build_filename (AI_DEFAULT_ICONDIR, icon_sizes[i], icon_name_full, NULL);
 			egg_debug ("copying file %s to %s", path, dest);
 			file = g_file_new_for_path (path);
 			remote = g_file_new_for_path (dest);
@@ -166,8 +166,8 @@ main (int argc, char *argv[])
 
 	/* use default */
 	if (cache == NULL) {
-		egg_debug ("cache not specified, using %s", APP_INSTALL_DEFAULT_DATABASE);
-		cache = g_strdup (APP_INSTALL_DEFAULT_DATABASE);
+		egg_debug ("cache not specified, using %s", AI_DEFAULT_DATABASE);
+		cache = g_strdup (AI_DEFAULT_DATABASE);
 	}
 
 	if (repo == NULL) {
@@ -201,7 +201,7 @@ main (int argc, char *argv[])
 
 	/* check that there are no existing entries from this repo */
 	statement = g_strdup_printf ("SELECT application_id FROM applications WHERE repo_id = '%s'", repo);
-	rc = sqlite3_exec (db, statement, app_install_add_get_number_sqlite_cb, (void*) &number, &error_msg);
+	rc = sqlite3_exec (db, statement, ai_add_get_number_sqlite_cb, (void*) &number, &error_msg);
 	g_free (statement);
 	if (rc != SQLITE_OK) {
 		egg_warning ("SQL error: %s\n", error_msg);
@@ -260,7 +260,7 @@ main (int argc, char *argv[])
 	/* copy all the icons */
 	if (icondir != NULL) {
 		statement = g_strdup_printf ("SELECT application_id, icon_name FROM applications WHERE repo_id = '%s'", repo);
-		rc = sqlite3_exec (db, statement, app_install_add_copy_icons_sqlite_cb, (void*) icondir, &error_msg);
+		rc = sqlite3_exec (db, statement, ai_add_copy_icons_sqlite_cb, (void*) icondir, &error_msg);
 		g_free (statement);
 		if (rc != SQLITE_OK) {
 			egg_warning ("SQL error: %s\n", error_msg);
