@@ -22,6 +22,8 @@ libaishared_a_SOURCES =					\
 	egg-debug.h					\
 	ai-database.c					\
 	ai-database.h					\
+	ai-utils.c					\
+	ai-utils.h					\
 	ai-common.h					\
 	$(NULL)
 
@@ -38,25 +40,25 @@ app_install_extract_package_CFLAGS = $(WARNINGFLAGS_C)
 app_install_create_SOURCES =				\
 	ai-create.c					\
 	$(NULL)
-app_install_create_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS) libaishared.a
+app_install_create_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(ARCHIVE_LIBS) $(SQLITE_LIBS) libaishared.a
 app_install_create_CFLAGS = $(WARNINGFLAGS_C)
 
 app_install_remove_SOURCES =				\
 	ai-remove.c					\
 	$(NULL)
-app_install_remove_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS) libaishared.a
+app_install_remove_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(ARCHIVE_LIBS) $(SQLITE_LIBS) libaishared.a
 app_install_remove_CFLAGS = $(WARNINGFLAGS_C)
 
 app_install_add_SOURCES =				\
 	ai-add.c					\
 	$(NULL)
-app_install_add_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS) libaishared.a
+app_install_add_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(ARCHIVE_LIBS) $(SQLITE_LIBS) libaishared.a
 app_install_add_CFLAGS = $(WARNINGFLAGS_C)
 
 app_install_generate_SOURCES =				\
 	ai-generate.c					\
 	$(NULL)
-app_install_generate_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS) libaishared.a
+app_install_generate_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(ARCHIVE_LIBS) $(SQLITE_LIBS) libaishared.a
 app_install_generate_CFLAGS = $(WARNINGFLAGS_C)
 
 check_PROGRAMS =					\

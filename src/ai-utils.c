@@ -22,6 +22,11 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 
+#include <archive.h>
+#include <archive_entry.h>
+
+#define BLOCK_SIZE	(1024 * 4 * 10) /* bytes */
+
 #include "ai-utils.h"
 
 /*
@@ -88,5 +93,80 @@ ai_utils_directory_remove (const gchar *directory)
 	if (retval != 0)
 		g_warning ("failed to delete %s", directory);
 	return TRUE;
+}
+
+/*
+ * ai_utils_extract_archive:
+ *
+ * Extracts an archive to a directory, fast.
+ */
+gboolean
+ai_utils_extract_archive (const gchar *filename, const gchar *directory, GError **error)
+{
+	gboolean ret = FALSE;
+	struct archive *arch = NULL;
+	struct archive_entry *entry;
+	int r;
+	int retval;
+	gchar *retcwd;
+	gchar buf[PATH_MAX];
+
+	/* save the PWD as we chdir to extract */
+	retcwd = getcwd (buf, PATH_MAX);
+	if (retcwd == NULL) {
+		g_set_error_literal (error, 1, 0, "failed to get cwd");
+		goto out;
+	}
+
+	/* we can only read tar achives */
+	arch = archive_read_new ();
+	archive_read_support_format_all (arch);
+	archive_read_support_compression_all (arch);
+
+	/* open the tar file */
+	r = archive_read_open_file (arch, filename, BLOCK_SIZE);
+	if (r) {
+		g_set_error (error, 1, 0, "cannot open: %s", archive_error_string (arch));
+		goto out;
+	}
+
+	/* switch to our destination directory */
+	retval = chdir (directory);
+	if (retval != 0) {
+		g_set_error (error, 1, 0, "failed chdir to %s", directory);
+		goto out;
+	}
+
+	/* decompress each file */
+	for (;;) {
+		r = archive_read_next_header (arch, &entry);
+		if (r == ARCHIVE_EOF)
+			break;
+		if (r != ARCHIVE_OK) {
+			g_set_error (error, 1, 0, "cannot read header: %s", archive_error_string (arch));
+			goto out;
+		}
+		r = archive_read_extract (arch, entry, 0);
+		if (r != ARCHIVE_OK) {
+			g_set_error (error, 1, 0, "cannot extract: %s", archive_error_string (arch));
+			goto out;
+		}
+	}
+
+	/* completed all okay */
+	ret = TRUE;
+out:
+	/* close the archive */
+	if (arch != NULL) {
+		archive_read_close (arch);
+		archive_read_finish (arch);
+	}
+
+	/* switch back to PWD */
+	retval = chdir (buf);
+	if (retval != 0)
+		g_warning ("cannot chdir back!");
+
+	return ret;
 }
 

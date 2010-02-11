@@ -27,6 +27,7 @@
 G_BEGIN_DECLS
 
 gboolean ai_utils_directory_remove (const gchar *directory);
+gboolean ai_utils_extract_archive (const gchar *filename, const gchar *directory, GError **error);
 
 G_END_DECLS
 
