@@ -216,14 +216,13 @@ ai_generate_get_application_id (const gchar *filename)
  * ai_generate_applications_sql:
  **/
 static gboolean
-ai_generate_applications_sql (AiDatabase *db, GPtrArray *data, const gchar *repo, const gchar *package, const gchar *application_id)
+ai_generate_applications_sql (AiDatabase *db, GPtrArray *data, const gchar *repo, const gchar *package, const gchar *application_id, GError **error)
 {
 	gchar *name = NULL;
 	gchar *comment = NULL;
 	gchar *icon_name = NULL;
 	gchar *categories = NULL;
 	gboolean ret;
-	GError *error = NULL;
 
 	name = ai_generate_get_value_for_locale (data, "Name", NULL);
 	icon_name = ai_generate_get_value_for_locale (data, "Icon", NULL);
@@ -239,12 +238,9 @@ ai_generate_applications_sql (AiDatabase *db, GPtrArray *data, const gchar *repo
 	}
 
 	egg_debug ("application_id=%s, name=%s, comment=%s, icon=%s, categories=%s", application_id, name, comment, icon_name, categories);
-	ret = ai_database_add_application (db, application_id, package, categories, repo, icon_name, name, comment, &error);
-	if (!ret) {
-		egg_warning ("failed to add application: %s", error->message);
-		g_error_free (error);
+	ret = ai_database_add_application (db, application_id, package, categories, repo, icon_name, name, comment, error);
+	if (!ret)
 		goto out;
-	}
 out:
 	g_free (name);
 	g_free (comment);
@@ -257,14 +253,13 @@ out:
  * ai_generate_translations_sql:
  **/
 static gboolean
-ai_generate_translations_sql (AiDatabase *db, GPtrArray *data, GPtrArray *locales, const gchar *application_id)
+ai_generate_translations_sql (AiDatabase *db, GPtrArray *data, GPtrArray *locales, const gchar *application_id, GError **error)
 {
 	gchar *name = NULL;
 	gchar *comment = NULL;
 	const gchar *locale;
 	guint i;
 	gboolean ret = TRUE;
-	GError *error = NULL;
 
 	for (i=0; i<locales->len; i++) {
 		locale = g_ptr_array_index (locales, i);
@@ -273,12 +268,9 @@ ai_generate_translations_sql (AiDatabase *db, GPtrArray *data, GPtrArray *locale
 
 		/* append the application data to the sql string if either not null */
 		if (name != NULL || comment != NULL) {
-			ret = ai_database_add_translation (db, application_id, name, comment, locale, &error);
-			if (!ret) {
-				egg_warning ("failed to add translation: %s", error->message);
-				g_error_free (error);
+			ret = ai_database_add_translation (db, application_id, name, comment, locale, error);
+			if (!ret)
 				goto out;
-			}
 		}
 		g_free (name);
 		g_free (comment);
@@ -348,7 +340,6 @@ main (int argc, char *argv[])
 	gchar *repo = NULL;
 	gchar *root = NULL;
 	gchar *desktopfile = NULL;
-	gchar *outputdir = NULL;
 	gchar *icondir = NULL;
 	gchar *package = NULL;
 	gboolean ret;
@@ -369,15 +360,15 @@ main (int argc, char *argv[])
 		  _("Database file to use (if not specififed, default is used)"), NULL},
 		{ "root", 'r', 0, G_OPTION_ARG_STRING, &root,
 		  /* TRANSLATORS: the root database, typically used for adding */
-		  _("Source cache file to add to the main database"), NULL},
-		{ "desktopfile", 'i', 0, G_OPTION_ARG_STRING, &desktopfile,
+		  _("The root directory of the package data"), NULL},
+		{ "desktopfile", 'f', 0, G_OPTION_ARG_STRING, &desktopfile,
 		  /* TRANSLATORS: the icon directory */
 		  _("Desktop file in the root"), NULL},
 		{ "package", 'p', 0, G_OPTION_ARG_STRING, &package,
 		  /* TRANSLATORS: the repo of the software root, e.g. fedora */
 		  _("Name of the package"), NULL},
-		{ "outputdir", 'o', 0, G_OPTION_ARG_STRING, &outputdir,
-		  /* TRANSLATORS: the output directory */
+		{ "icondir", 'i', 0, G_OPTION_ARG_STRING, &icondir,
+		  /* TRANSLATORS: the icon directory */
 		  _("Icon directory"), NULL},
 		{ "repo", 'n', 0, G_OPTION_ARG_STRING, &repo,
 		  /* TRANSLATORS: the repo of the software root, e.g. fedora */
@@ -406,8 +397,8 @@ main (int argc, char *argv[])
 		retval = 1;
 		goto out;
 	}
-	if (outputdir == NULL) {
-		g_print ("A output directory is required\n");
+	if (icondir == NULL) {
+		g_print ("A icon directory is required\n");
 		retval = 1;
 		goto out;
 	}
@@ -434,8 +425,8 @@ main (int argc, char *argv[])
 		retval = 1;
 		goto out;
 	}
-	if (!g_file_test (outputdir, G_FILE_TEST_IS_DIR)) {
-		g_print ("The icon output directory '%s' could not be found\n", outputdir);
+	if (!g_file_test (icondir, G_FILE_TEST_IS_DIR)) {
+		g_print ("The icon output directory '%s' could not be found\n", icondir);
 		retval = 1;
 		goto out;
 	}
@@ -451,8 +442,7 @@ main (int argc, char *argv[])
 		goto out;
 	}
 
-	/* generate the sub directories in the outputdir if they dont exist */
-	icondir = g_build_filename (outputdir, "icons", NULL);
+	/* generate the sub directories in the icondir if they dont exist */
 	ai_generate_create_icon_directories (icondir);
 
 	if (desktopfile[0] != '/') {
@@ -474,7 +464,13 @@ main (int argc, char *argv[])
 	}
 
 	/* form application SQL */
-	ret = ai_generate_applications_sql (db, data, repo, package, application_id);
+	ret = ai_generate_applications_sql (db, data, repo, package, application_id, &error);
+	if (!ret) {
+		g_print ("Could not generate application data for %s: %s\n", package, error->message);
+		g_error_free (error);
+		retval = 1;
+		goto out;
+	}
 
 	/* get list of locales in this file */
 	locales = ai_generate_get_locales (data);
@@ -485,22 +481,27 @@ main (int argc, char *argv[])
 	}
 
 	/* form translations SQL */
-	ret = ai_generate_translations_sql (db, data, locales, application_id);
+	ret = ai_generate_translations_sql (db, data, locales, application_id, &error);
+	if (!ret) {
+		g_print ("Could not generate translation data for %s: %s\n", package, error->message);
+		g_error_free (error);
+		retval = 1;
+		goto out;
+	}
 
 	/* copy icons */
 	icon_name = ai_generate_get_value_for_locale (data, "Icon", NULL);
 	if (icon_name != NULL && !g_str_has_suffix (icon_name, ".png"))
 		ai_generate_copy_icons (root, icondir, icon_name);
 
+out:
 	/* close it */
 	ret = ai_database_close (db, FALSE, &error);
 	if (!ret) {
 		g_print ("%s: %s\n", _("Failed to close"), error->message);
 		g_error_free (error);
 		retval = 1;
-		goto out;
 	}
-out:
 	if (db != NULL)
 		g_object_unref (db);
 	if (locales != NULL) {
@@ -520,7 +521,6 @@ out:
 	g_free (repo);
 	g_free (root);
 	g_free (desktopfile);
-	g_free (outputdir);
 	return retval;
 }
 
