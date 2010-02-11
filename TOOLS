@@ -1,0 +1,74 @@
+Use cases:
+
+* Remove all entries about gnome-packagekit
+* Remove all entries about fedora-updates-testing
+* Add a single package data to the database
+* Generate a tree of metadata with not prior knowledge
+
+
+****************************************************
+Name:		app-install-create
+Purpose:	Creates a blank database with the correct schema
+Example:	app-install-create --database=appdata.db
+Notes:		Will not create a database if the file already exists
+
+****************************************************
+Name:		app-install-extract-package
+Purpose:	Explodes a package from it's compressed form to a bare tree
+		of files (no header data).
+Example:	./app-install-extract-package --package=dave.rpm \
+					      --directory=/tmp/unpack/dave
+Notes:		This is a seporate executable so it can be run multithreaded,
+		as libarchive is not thread safe.
+
+****************************************************
+Name:		app-install-remove
+Purpose:	Removes entries from the application database
+Example:	app-install-remove --database=appdata.db \
+				   --icondir=./icons \
+				   --repo=fedora
+Example:	app-install-remove --database=appdata.db \
+				   --icondir=./icons \
+				   --package=gnome-packagekit
+Notes:		--repo removes all entries that match the repository, and
+		--package remove all entries that match the package name.
+	
+****************************************************
+Name:		app-install-add
+Purpose:	Merges entries from a source database and icon tree into a
+		destination database and icon tree.
+Example:	app-install-add --database=appdata.db \
+				--source-database=import.db \
+				--icondir=/usr/share/appdata/icons \
+				--source=icondir=./import/icons \
+				--repo=fedora-updates
+Example:	app-install-add --database=appdata.db \
+				--source-database=import.db \
+				--icondir=/usr/share/appdata/icons \
+				--source=icondir=./import/icons \
+				--package=gnome-packagekit
+Notes:		--repo copies all entries that match the repository, and
+		--package copies all entries that match the package name.
+
+****************************************************
+Name:		app-install-generate
+Purpose:	Generates an application database and copies files to a icon
+		directory. To be run at metadata generation time.
+Example:	app-install-generate --database=appdata.db \
+				     --root=explode/ \
+				     --repo=fedora \
+				     --icondir=./icons \
+				     --desktopfile=/usr/share/applications/accountsdialog.desktop \
+				     --package=accountsdialog
+Notes:		This also extracts all the translations
+
+****************************************************
+Name:		app-install-compose
+Purpose:	Generates application data and a tarball of icons when pointed
+		at a tree of packages
+Example:	app-install-compose --database=appdata.db \
+				    --tree /home/hughsie/rpmbuild/REPOS/fedora/12/i386 \
+				    --repo=rawhide \
+				    --threads=4
+Notes:		Not included in git master yet.
+
