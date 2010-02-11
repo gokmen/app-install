@@ -50,10 +50,12 @@ struct _AiDatabaseClass
 
 GType		 ai_database_get_type		  	(void);
 AiDatabase	*ai_database_new			(void);
-void		 ai_database_set_filename		(AiDatabase	*database,
-							 const gchar	*filename);
-void		 ai_database_set_icon_path		(AiDatabase	*database,
-							 const gchar	*icon_path);
+gboolean	 ai_database_set_filename		(AiDatabase	*database,
+							 const gchar	*filename,
+							 GError		**error);
+gboolean	 ai_database_set_icon_path		(AiDatabase	*database,
+							 const gchar	*icon_path,
+							 GError		**error);
 gboolean	 ai_database_open			(AiDatabase	*database,
 							 gboolean	 synchronous,
 							 GError		**error);

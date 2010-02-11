@@ -59,6 +59,26 @@ app_install_generate_SOURCES =				\
 app_install_generate_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(SQLITE_LIBS) libaishared.a
 app_install_generate_CFLAGS = $(WARNINGFLAGS_C)
 
+check_PROGRAMS =					\
+	ai-self-test
+
+ai_self_test_SOURCES =					\
+	ai-self-test.c					\
+	egg-test.h					\
+	egg-test.c					\
+	$(libaishared_a_SOURCES)			\
+	$(NULL)
+
+ai_self_test_LDADD =					\
+	$(GLIB_LIBS)					\
+	$(SQLITE_LIBS)					\
+	$(GIO_LIBS)					\
+	$(ARCHIVE_LIBS)					\
+	$(NULL)
+
+ai_self_test_CFLAGS = -DEGG_TEST $(AM_CFLAGS)
+
+TESTS = ai-self-test
 install-data-hook:
 	if test -w $(DESTDIR)$(prefix)/; then \
 		mkdir -p $(DESTDIR)$(localstatedir)/lib/app-install; \

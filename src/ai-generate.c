@@ -442,7 +442,7 @@ main (int argc, char *argv[])
 
 	/* open database */
 	db = ai_database_new ();
-	ai_database_set_filename (db, database);
+	ai_database_set_filename (db, database, NULL);
 	ret = ai_database_open (db, TRUE, &error);
 	if (!ret) {
 		g_print ("%s: %s\n", _("Failed to open"), error->message);

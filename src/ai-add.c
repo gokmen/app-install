@@ -102,8 +102,8 @@ main (int argc, char *argv[])
 
 	/* open database */
 	db = ai_database_new ();
-	ai_database_set_filename (db, database);
-	ai_database_set_icon_path (db, icondir);
+	ai_database_set_filename (db, database, NULL);
+	ai_database_set_icon_path (db, icondir, NULL);
 	ret = ai_database_open (db, FALSE, &error);
 	if (!ret) {
 		g_print ("%s: %s\n", _("Failed to open"), error->message);

@@ -60,12 +60,20 @@ G_DEFINE_TYPE (AiDatabase, ai_database, G_TYPE_OBJECT)
  *
  * The source database filename.
  */
-void
-ai_database_set_filename (AiDatabase *database, const gchar *filename)
+gboolean
+ai_database_set_filename (AiDatabase *database, const gchar *filename, GError **error)
 {
+	gboolean ret = TRUE;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_if_fail (!priv->locked);
+	g_return_if_fail (AI_IS_DATABASE (database));
+
+	/* check database is in correct state */
+	if (priv->locked) {
+		g_set_error (error, 1, 0, "database is already open");
+		ret = FALSE;
+		goto out;
+	}
 
 	g_free (priv->filename);
 
@@ -76,6 +84,8 @@ ai_database_set_filename (AiDatabase *database, const gchar *filename)
 	} else {
 		priv->filename = g_strdup (filename);
 	}
+out:
+	return ret;
 }
 
 /*
@@ -83,12 +93,27 @@ ai_database_set_filename (AiDatabase *database, const gchar *filename)
  *
  * The icon path for the currently loaded database.
  */
-void
-ai_database_set_icon_path (AiDatabase *database, const gchar *icon_path)
+gboolean
+ai_database_set_icon_path (AiDatabase *database, const gchar *icon_path, GError **error)
 {
+	gboolean ret = TRUE;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_if_fail (!priv->locked);
+	g_return_if_fail (AI_IS_DATABASE (database));
+
+	/* check database is in correct state */
+	if (priv->locked) {
+		g_set_error (error, 1, 0, "database is already open");
+		ret = FALSE;
+		goto out;
+	}
+
+	/* check it exists */
+	if (icon_path != NULL && !g_file_test (icon_path, G_FILE_TEST_IS_DIR)) {
+		g_set_error (error, 1, 0, "the icon directory '%s' could not be found", icon_path);
+		ret = FALSE;
+		goto out;
+	}
 
 	g_free (priv->icon_path);
 
@@ -100,9 +125,8 @@ ai_database_set_icon_path (AiDatabase *database, const gchar *icon_path)
 		priv->icon_path = g_strdup (icon_path);
 //	}
 
-	/* check it exists */
-	if (priv->icon_path != NULL && !g_file_test (priv->icon_path, G_FILE_TEST_IS_DIR))
-		egg_warning ("The icon directory '%s' could not be found", priv->icon_path);
+out:
+	return ret;
 }
 
 /*
@@ -116,7 +140,14 @@ ai_database_open (AiDatabase *database, gboolean synchronous, GError **error)
 	const gchar *statement;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+
+	/* check database is in correct state */
+	if (priv->locked) {
+		g_set_error (error, 1, 0, "database is already open");
+		ret = FALSE;
+		goto out;
+	}
 
 	/* open database */
 	rc = sqlite3_open (priv->filename, &priv->db);
@@ -136,6 +167,9 @@ ai_database_open (AiDatabase *database, gboolean synchronous, GError **error)
 			goto out;
 		}
 	}
+
+	/* okay for business */
+	priv->locked = TRUE;
 out:
 	return ret;
 }
@@ -151,7 +185,14 @@ ai_database_close (AiDatabase *database, gboolean vaccuum, GError **error)
 	const gchar *statement;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
 
 	/* reclaim memory */
 	if (vaccuum) {
@@ -165,6 +206,7 @@ ai_database_close (AiDatabase *database, gboolean vaccuum, GError **error)
 	}
 
 	sqlite3_close (priv->db);
+	priv->locked = FALSE;
 
 //	/* if the database file was not installed (or was nuked) recreate it */
 //	create_file = g_file_test (database, G_FILE_TEST_EXISTS);
@@ -188,7 +230,14 @@ ai_database_create (AiDatabase *database, GError **error)
 	gint rc;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
 
 	/* create applications */
 	statement = "CREATE TABLE applications ("
@@ -286,7 +335,14 @@ ai_database_remove_by_repo (AiDatabase *database, const gchar *repo, GError **er
 	gchar *error_msg;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
 
 	/* remove icons */
 	if (priv->icon_path != NULL) {
@@ -340,7 +396,14 @@ ai_database_remove_by_name (AiDatabase *database, const gchar *name, GError **er
 	gchar *error_msg;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
 
 	/* remove icons */
 	if (priv->icon_path != NULL) {
@@ -405,7 +468,18 @@ ai_database_query_by_repo (AiDatabase *database, const gchar *repo, guint *value
 	gchar *error_msg;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+	g_return_val_if_fail (value != NULL, FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
+
+	/* set to initial state */
+	*value = 0;
 
 	/* check that there are no existing entries from this repo */
 	statement = g_strdup_printf ("SELECT application_id FROM applications WHERE repo_id = '%s'", repo);
@@ -433,7 +507,18 @@ ai_database_query_by_name (AiDatabase *database, const gchar *name, guint *value
 	gchar *error_msg;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+	g_return_val_if_fail (value != NULL, FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
+
+	/* set to initial state */
+	*value = 0;
 
 	/* check that there are no existing entries from this repo */
 	statement = g_strdup_printf ("SELECT application_id FROM applications WHERE package_name = '%s'", name);
@@ -463,7 +548,14 @@ ai_database_import (AiDatabase *database, const gchar *filename, guint *value, G
 	guint i;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
 
 	/* get all the sql from the source file */
 	ret = g_file_get_contents (filename, &contents, NULL, error);
@@ -509,7 +601,14 @@ ai_database_add_translation (AiDatabase *database,
 	gchar *statement;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
 
 	/* generate SQL */
 	statement = sqlite3_mprintf ("INSERT INTO translations (application_id, application_name, application_summary, locale) "
@@ -544,11 +643,18 @@ ai_database_add_application (AiDatabase *database,
 	gchar *statement;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
 	g_return_val_if_fail (application_id != NULL, FALSE);
 	g_return_val_if_fail (package != NULL, FALSE);
 	g_return_val_if_fail (repo != NULL, FALSE);
 	g_return_val_if_fail (name != NULL, FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
 
 	/* generate SQL */
 	statement = sqlite3_mprintf ("INSERT INTO applications (application_id, package_name, categories, "
@@ -746,9 +852,16 @@ ai_database_import_by_name (AiDatabase *database,
 	AiDatabaseTemp *temp = NULL;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
 	g_return_val_if_fail (filename != NULL, FALSE);
 	g_return_val_if_fail (name != NULL, FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
 
 	/* open database */
 	rc = sqlite3_open (filename, &foreign_db);
@@ -829,9 +942,16 @@ ai_database_import_by_repo (AiDatabase *database,
 	AiDatabaseTemp *temp = NULL;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_val_if_fail (!priv->locked, FALSE);
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
 	g_return_val_if_fail (filename != NULL, FALSE);
 	g_return_val_if_fail (repo != NULL, FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
 
 	/* database does not exist */
 	if (!g_file_test (filename, G_FILE_TEST_EXISTS)) {
@@ -987,6 +1107,10 @@ ai_database_finalize (GObject *object)
 
 	g_free (priv->filename);
 	g_free (priv->icon_path);
+	if (priv->locked) {
+		egg_warning ("YOU HAVE TO MANUALLY CALL ai_database_close()!!!");
+		sqlite3_close (priv->db);
+	}
 
 	G_OBJECT_CLASS (ai_database_parent_class)->finalize (object);
 }
@@ -1005,4 +1129,275 @@ ai_database_new (void)
 	database = g_object_new (AI_TYPE_DATABASE, NULL);
 	return AI_DATABASE (database);
 }
+
+/***************************************************************************
+ ***                          MAKE CHECK TESTS                           ***
+ ***************************************************************************/
+#ifdef EGG_TEST
+#include "egg-test.h"
+
+void
+ai_database_test (EggTest *test)
+{
+	gboolean ret;
+	GError *error = NULL;
+	AiDatabase *db;
+	AiDatabase *db2;
+	guint value;
+
+	if (!egg_test_start (test, "AiDatabase"))
+		return;
+
+	/* nuke test file */
+	g_unlink ("test.db");
+	g_unlink ("test2.db");
+
+	/************************************************************/
+	egg_test_title (test, "get an instance");
+	db = ai_database_new ();
+	egg_test_assert (test, db != NULL);
+
+	/************************************************************/
+	egg_test_title (test, "set filename (once)");
+	ret = ai_database_set_filename (db, "test-do-not-use.db", NULL);
+	egg_test_assert (test, ret);
+
+	/************************************************************/
+	egg_test_title (test, "set filename (again)");
+	ret = ai_database_set_filename (db, "test.db", NULL);
+	egg_test_assert (test, ret);
+
+	/************************************************************/
+	egg_test_title (test, "create database without open");
+	ret = ai_database_create (db, NULL);
+	egg_test_assert (test, !ret);
+
+	/************************************************************/
+	egg_test_title (test, "open database");
+	ret = ai_database_open (db, TRUE, &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "create database after open");
+	ret = ai_database_create (db, &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "check correct number by repo");
+	ret = ai_database_query_by_repo (db, "fedora", &value, &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	if (value != 0)
+		egg_test_failed (test, "incorrect number: %i", value);
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "check correct number by name");
+	ret = ai_database_query_by_name (db, "gnome-packagekit", &value, &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	if (value != 0)
+		egg_test_failed (test, "incorrect number: %i", value);
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "add translation");
+	ret = ai_database_add_translation (db,
+					   "gpk-application",
+					   "GNOME PackageKit",
+					   "Package Installer",
+					   "en_GB",
+					   &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "add application");
+	ret = ai_database_add_application (db,
+					   "gpk-application",
+					   "gnome-packagekit",
+					   "GNOME;games;",
+					   "fedora",
+					   "gpk-app.png",
+					   "GNOME PackageKit",
+					   "Package Installer",
+					   &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "add application (another one)");
+	ret = ai_database_add_application (db,
+					   "gpk-prefs",
+					   "gnome-packagekit",
+					   "GNOME;games;",
+					   "rpmfusion",
+					   "gpk-app.png",
+					   "GNOME PackageKit Preferences",
+					   "Package Installer Preferences",
+					   &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "check correct number by repo");
+	ret = ai_database_query_by_repo (db, "fedora", &value, &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	if (value != 1)
+		egg_test_failed (test, "incorrect number: %i", value);
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "check correct number by name");
+	ret = ai_database_query_by_name (db, "gnome-packagekit", &value, &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	if (value != 2)
+		egg_test_failed (test, "incorrect number: %i", value);
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "remove by repo");
+	ret = ai_database_remove_by_repo (db, "fedora", &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "check correct number by repo");
+	ret = ai_database_query_by_repo (db, "fedora", &value, &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	if (value != 0)
+		egg_test_failed (test, "incorrect number: %i", value);
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "remove by name");
+	ret = ai_database_remove_by_name (db, "gnome-packagekit", &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "check correct number by name");
+	ret = ai_database_query_by_name (db, "gnome-packagekit", &value, &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	if (value != 0)
+		egg_test_failed (test, "incorrect number: %i", value);
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "close database");
+	ret = ai_database_close (db, TRUE, &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "close database (again)");
+	ret = ai_database_close (db, FALSE, NULL);
+	egg_test_assert (test, !ret);
+
+	/************************************************************/
+	egg_test_title (test, "try to import by name");
+	ret = ai_database_open (db, FALSE, NULL);
+	if (!ret)
+		egg_test_failed (test, "failed to open");
+	ret = ai_database_add_application (db,
+					   "gpk-application",
+					   "gnome-packagekit",
+					   "GNOME;games;",
+					   "fedora",
+					   "gpk-app.png",
+					   "GNOME PackageKit",
+					   "Package Installer",
+					   NULL);
+	if (!ret)
+		egg_test_failed (test, "failed to add app");
+	ret = ai_database_add_translation (db,
+					   "gpk-application",
+					   "GNOME PackageKit",
+					   "Package Installer",
+					   "en_GB",
+					   NULL);
+	if (!ret)
+		egg_test_failed (test, "failed to add trans");
+	ret = ai_database_close (db, TRUE, NULL);
+	if (!ret)
+		egg_test_failed (test, "failed to open");
+
+	ret = ai_database_set_filename (db, "test2.db", NULL);
+	if (!ret)
+		egg_test_failed (test, "failed to set");
+	ret = ai_database_open (db, TRUE, NULL);
+	if (!ret)
+		egg_test_failed (test, "failed to open");
+	ret = ai_database_create (db, NULL);
+	if (!ret)
+		egg_test_failed (test, "failed to create");
+	ret = ai_database_import_by_name (db, "test.db", NULL, "gnome-packagekit", &value, &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	if (value != 1)
+		egg_test_failed (test, "incorrect number of imports: %i", value);
+	egg_test_success (test, NULL);
+
+	/************************************************************/
+	egg_test_title (test, "check correct number by name");
+	ret = ai_database_query_by_name (db, "gnome-packagekit", &value, &error);
+	if (!ret) {
+		egg_test_failed (test, "%s", error->message);
+		g_error_free (error);
+	}
+	if (value != 1)
+		egg_test_failed (test, "incorrect number: %i", value);
+	egg_test_success (test, NULL);
+
+	ai_database_close (db, FALSE, NULL);
+
+	g_object_unref (db);
+
+	egg_test_end (test);
+}
+#endif
 

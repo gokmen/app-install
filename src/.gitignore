@@ -1,6 +1,7 @@
 .deps
 .libs
 *.o
+ai-self-test
 app-install-add
 app-install-create
 app-install-generate
@@ -10,4 +11,6 @@ app-install-compose
 *.sqldata
 *.tar.bz2
 *.db
+*.txt
+*.a
 
