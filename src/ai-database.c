@@ -109,7 +109,7 @@ ai_database_set_icon_path (AiDatabase *database, const gchar *icon_path)
  * ai_database_open:
  */
 gboolean
-ai_database_open (AiDatabase *database, GError **error)
+ai_database_open (AiDatabase *database, gboolean synchronous, GError **error)
 {
 	gboolean ret = TRUE;
 	gint rc;
@@ -127,12 +127,14 @@ ai_database_open (AiDatabase *database, GError **error)
 	}
 
 	/* don't sync */
-	statement = "PRAGMA synchronous=OFF";
-	rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
-	if (rc) {
-		g_set_error (error, 1, 0, "Can't turn off sync: %s\n", sqlite3_errmsg (priv->db));
-		ret = FALSE;
-		goto out;
+	if (!synchronous) {
+		statement = "PRAGMA synchronous=OFF";
+		rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
+		if (rc) {
+			g_set_error (error, 1, 0, "Can't turn off sync: %s\n", sqlite3_errmsg (priv->db));
+			ret = FALSE;
+			goto out;
+		}
 	}
 out:
 	return ret;
@@ -142,7 +144,7 @@ out:
  * ai_database_close:
  */
 gboolean
-ai_database_close (AiDatabase *database, GError **error)
+ai_database_close (AiDatabase *database, gboolean vaccuum, GError **error)
 {
 	gboolean ret = TRUE;
 	gint rc;
@@ -152,12 +154,14 @@ ai_database_close (AiDatabase *database, GError **error)
 	g_return_val_if_fail (!priv->locked, FALSE);
 
 	/* reclaim memory */
-	statement = "VACUUM";
-	rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
-	if (rc) {
-		g_set_error (error, 1, 0, "Can't vanuum: %s\n", sqlite3_errmsg (priv->db));
-		ret = FALSE;
-		goto out;
+	if (vaccuum) {
+		statement = "VACUUM";
+		rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
+		if (rc) {
+			g_set_error (error, 1, 0, "Can't vaccuum: %s\n", sqlite3_errmsg (priv->db));
+			ret = FALSE;
+			goto out;
+		}
 	}
 
 	sqlite3_close (priv->db);

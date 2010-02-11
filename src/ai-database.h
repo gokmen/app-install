@@ -55,8 +55,10 @@ void		 ai_database_set_filename		(AiDatabase	*database,
 void		 ai_database_set_icon_path		(AiDatabase	*database,
 							 const gchar	*icon_path);
 gboolean	 ai_database_open			(AiDatabase	*database,
+							 gboolean	 synchronous,
 							 GError		**error);
 gboolean	 ai_database_close			(AiDatabase	*database,
+							 gboolean	 vaccuum,
 							 GError		**error);
 gboolean	 ai_database_create			(AiDatabase	*database,
 							 GError		**error);

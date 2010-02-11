@@ -89,7 +89,7 @@ main (int argc, char *argv[])
 	db = ai_database_new ();
 	ai_database_set_filename (db, database);
 	ai_database_set_icon_path (db, icondir);
-	ret = ai_database_open (db, &error);
+	ret = ai_database_open (db, FALSE, &error);
 	if (!ret) {
 		g_print ("%s: %s\n", _("Failed to open"), error->message);
 		g_error_free (error);
@@ -120,7 +120,7 @@ main (int argc, char *argv[])
 	}
 
 	/* close it */
-	ret = ai_database_close (db, &error);
+	ret = ai_database_close (db, TRUE, &error);
 	if (!ret) {
 		g_print ("%s: %s\n", _("Failed to close"), error->message);
 		g_error_free (error);

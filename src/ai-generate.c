@@ -443,7 +443,7 @@ main (int argc, char *argv[])
 	/* open database */
 	db = ai_database_new ();
 	ai_database_set_filename (db, database);
-	ret = ai_database_open (db, &error);
+	ret = ai_database_open (db, TRUE, &error);
 	if (!ret) {
 		g_print ("%s: %s\n", _("Failed to open"), error->message);
 		g_error_free (error);
@@ -493,7 +493,7 @@ main (int argc, char *argv[])
 		ai_generate_copy_icons (root, icondir, icon_name);
 
 	/* close it */
-	ret = ai_database_close (db, &error);
+	ret = ai_database_close (db, FALSE, &error);
 	if (!ret) {
 		g_print ("%s: %s\n", _("Failed to close"), error->message);
 		g_error_free (error);
