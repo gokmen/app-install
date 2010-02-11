@@ -330,7 +330,7 @@ gboolean
 ai_database_remove_by_repo (AiDatabase *database, const gchar *repo, GError **error)
 {
 	gboolean ret = TRUE;
-	gchar *statement;
+	gchar *statement = NULL;
 	gint rc;
 	gchar *error_msg;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
@@ -391,7 +391,7 @@ gboolean
 ai_database_remove_by_name (AiDatabase *database, const gchar *name, GError **error)
 {
 	gboolean ret = TRUE;
-	gchar *statement;
+	gchar *statement = NULL;
 	gint rc;
 	gchar *error_msg;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
@@ -463,7 +463,7 @@ gboolean
 ai_database_query_by_repo (AiDatabase *database, const gchar *repo, guint *value, GError **error)
 {
 	gboolean ret = TRUE;
-	gchar *statement;
+	gchar *statement = NULL;
 	gint rc;
 	gchar *error_msg;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
@@ -502,7 +502,7 @@ gboolean
 ai_database_query_by_name (AiDatabase *database, const gchar *name, guint *value, GError **error)
 {
 	gboolean ret = TRUE;
-	gchar *statement;
+	gchar *statement = NULL;
 	gint rc;
 	gchar *error_msg;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
@@ -598,7 +598,7 @@ ai_database_add_translation (AiDatabase *database,
 {
 	gboolean ret = TRUE;
 	gint rc;
-	gchar *statement;
+	gchar *statement = NULL;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
 	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
@@ -640,7 +640,7 @@ ai_database_add_application (AiDatabase *database,
 {
 	gboolean ret = TRUE;
 	gint rc;
-	gchar *statement;
+	gchar *statement = NULL;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
 	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
@@ -846,9 +846,9 @@ ai_database_import_by_name (AiDatabase *database,
 {
 	gboolean ret = TRUE;
 	gint rc;
-	gchar *statement;
+	gchar *statement = NULL;
 	gchar *error_msg;
-	sqlite3	*foreign_db;
+	sqlite3	*foreign_db = NULL;
 	AiDatabaseTemp *temp = NULL;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
@@ -919,7 +919,8 @@ ai_database_import_by_name (AiDatabase *database,
 		*value = 1;
 out:
 	g_free (temp);
-	sqlite3_close (foreign_db);
+	if (foreign_db != NULL)
+		sqlite3_close (foreign_db);
 	return ret;
 }
 
@@ -936,9 +937,9 @@ ai_database_import_by_repo (AiDatabase *database,
 {
 	gboolean ret = TRUE;
 	gint rc;
-	gchar *statement;
+	gchar *statement = NULL;
 	gchar *error_msg;
-	sqlite3	*foreign_db;
+	sqlite3	*foreign_db = NULL;
 	AiDatabaseTemp *temp = NULL;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
@@ -1023,7 +1024,8 @@ ai_database_import_by_repo (AiDatabase *database,
 		*value = 1;
 out:
 	g_free (temp);
-	sqlite3_close (foreign_db);
+	if (foreign_db != NULL)
+		sqlite3_close (foreign_db);
 	return ret;
 }
 

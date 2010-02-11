@@ -69,7 +69,7 @@ ai_generate_create_icon_directories (const gchar *directory)
 		ret = g_file_make_directory (file, NULL, &error);
 		g_object_unref (file);
 		if (!ret) {
-			egg_warning ("cannot create %s: %s", path, error->message);
+			egg_warning ("cannot create %s: %s", directory, error->message);
 			g_error_free (error);
 			goto out;
 		}
