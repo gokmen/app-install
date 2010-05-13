@@ -40,12 +40,12 @@ Purpose:	Merges entries from a source database and icon tree into a
 Example:	app-install-add --database=appdata.db \
 				--source-database=import.db \
 				--icondir=/usr/share/appdata/icons \
-				--source=icondir=./import/icons \
+				--source-icondir=./import/icons \
 				--repo=fedora-updates
 Example:	app-install-add --database=appdata.db \
 				--source-database=import.db \
 				--icondir=/usr/share/appdata/icons \
-				--source=icondir=./import/icons \
+				--source-icondir=./import/icons \
 				--package=gnome-packagekit
 Notes:		--repo copies all entries that match the repository, and
 		--package copies all entries that match the package name.
