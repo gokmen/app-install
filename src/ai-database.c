@@ -969,7 +969,7 @@ ai_database_import_by_repo (AiDatabase *database,
 	}
 
 	/* open database */
-	rc = sqlite3_open (priv->filename, &foreign_db);
+	rc = sqlite3_open (filename, &foreign_db);
 	if (rc) {
 		g_set_error (error, 1, 0, "Can't open database: %s\n", sqlite3_errmsg (priv->db));
 		ret = FALSE;
