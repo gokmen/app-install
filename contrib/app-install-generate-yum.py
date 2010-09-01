@@ -73,16 +73,24 @@ def main():
 
     # open sql file
     db = dist + "/%s.sqldata" % reponame
-    print "opening", db
-    outp = open(db,"w")
+    cmd = "../src/app-install-create --database=%s" % db
+    print 'creating database'
+    p = subprocess.Popen(cmd, cwd='.', shell=True, stdout=subprocess.PIPE)
+    p.wait()
+    if p.returncode:
+        print 'cannot create database', db, 'using', cmd
+        for line in p.stdout:
+            print line
+        sys.exit()
 
     # create a cache directory
     if not os.path.exists(dist + '/cache'):
         os.makedirs(dist + '/cache')
 
     # create a icons directory
-    if not os.path.exists(dist + '/icons'):
-        os.makedirs(dist + '/icons')
+    icondir = dist + '/icons'
+    if not os.path.exists(icondir):
+        os.makedirs(icondir)
 
     # find all packages
     pkgs = yb.pkgSack
@@ -145,7 +153,7 @@ def main():
         for instfile in desktop_files:
             print 'generating sql for', instfile
             cwd = os.getcwd()
-            cmd = "app-install-generate --outputdir=%s --repo=%s --root=%s --desktopfile=%s --package=%s" % (dist, pkg.repoid, directory, instfile, pkg.name)
+            cmd = "../src/app-install-generate --icondir=%s --repo=%s --root=%s --desktopfile=%s --package=%s --database=%s" % (icondir, pkg.repoid, directory, instfile, pkg.name, db)
             p = subprocess.Popen(cmd, shell=True, cwd=cwd, stdout=subprocess.PIPE)
             p.wait()
             if p.returncode:
@@ -153,8 +161,6 @@ def main():
                 for line in p.stdout:
                     print line
                 continue
-            for sql in p.stdout:
-                outp.write(sql)
 
         # do this per package else it takes ages at the end
         print 'removing temporary files'
@@ -167,9 +173,6 @@ def main():
             license = '(' + license + ')'
         license_string += "%s and " % license
     print 'license = ', license_string
-
-    print 'finished file write'
-    outp.close()
 
     # create tar archive
     print 'creating archive'
