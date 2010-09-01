@@ -13,6 +13,13 @@ Example:	app-install-create --database=appdata.db
 Notes:		Will not create a database if the file already exists
 
 ****************************************************
+Name:		app-install-query
+Purpose:	Queries the database for applications
+Example:	app-install-query name power
+Notes:		This is basically a debugging tool and not designed to
+                be used by end users.
+
+****************************************************
 Name:		app-install-extract-package
 Purpose:	Explodes a package from it's compressed form to a bare tree
 		of files (no header data).

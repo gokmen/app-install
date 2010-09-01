@@ -120,7 +120,7 @@ main (int argc, char *argv[])
 
 	if (repo != NULL) {
 		/* create it */
-		ret = ai_database_query_by_repo (db, repo, &number, &error);
+		ret = ai_database_query_number_by_repo (db, repo, &number, &error);
 		if (!ret) {
 			g_print ("%s: %s\n", _("Failed to query by repo"), error->message);
 			g_error_free (error);
@@ -130,7 +130,7 @@ main (int argc, char *argv[])
 
 		/* already have data for this repo */
 		if (number > 0) {
-			egg_warning ("There are already %i entries for repo %s", number, repo);
+			g_print ("%s\n", _("There are already entries for repository"));
 			goto out;
 		}
 
@@ -147,7 +147,7 @@ main (int argc, char *argv[])
 
 	if (package != NULL) {
 		/* create it */
-		ret = ai_database_query_by_name (db, package, &number, &error);
+		ret = ai_database_query_number_by_name (db, package, &number, &error);
 		if (!ret) {
 			g_print ("%s: %s\n", _("Failed to query by name"), error->message);
 			g_error_free (error);
@@ -172,17 +172,17 @@ main (int argc, char *argv[])
 		egg_debug ("%i additions to the database", number);
 	}
 
-	/* close it */
-	ret = ai_database_close (db, FALSE, &error);
-	if (!ret) {
-		g_print ("%s: %s\n", _("Failed to close"), error->message);
-		g_error_free (error);
-		retval = 1;
-		goto out;
-	}
 out:
-	if (db != NULL)
+	/* close it */
+	if (db != NULL) {
+		ret = ai_database_close (db, FALSE, &error);
+		if (!ret) {
+			g_print ("%s: %s\n", _("Failed to close"), error->message);
+			g_error_free (error);
+			retval = 1;
+		}
 		g_object_unref (db);
+	}
 	g_free (package);
 	g_free (repo);
 	g_free (database);

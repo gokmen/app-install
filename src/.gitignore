@@ -8,6 +8,7 @@ app-install-generate
 app-install-remove
 app-install-extract-package
 app-install-compose
+app-install-query
 *.sqldata
 *.tar.bz2
 *.db

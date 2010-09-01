@@ -28,6 +28,7 @@
 #include "egg-debug.h"
 
 #include "ai-database.h"
+#include "ai-result.h"
 #include "ai-common.h"
 
 static void     ai_database_finalize	(GObject     *object);
@@ -152,7 +153,7 @@ ai_database_open (AiDatabase *database, gboolean synchronous, GError **error)
 	/* open database */
 	rc = sqlite3_open (priv->filename, &priv->db);
 	if (rc) {
-		g_set_error (error, 1, 0, "Can't open database: %s\n", sqlite3_errmsg (priv->db));
+		g_set_error (error, 1, 0, "Can't open database %s: %s\n", priv->filename, sqlite3_errmsg (priv->db));
 		ret = FALSE;
 		goto out;
 	}
@@ -162,7 +163,7 @@ ai_database_open (AiDatabase *database, gboolean synchronous, GError **error)
 		statement = "PRAGMA synchronous=OFF";
 		rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
 		if (rc) {
-			g_set_error (error, 1, 0, "Can't turn off sync: %s\n", sqlite3_errmsg (priv->db));
+			g_set_error (error, 1, 0, "Can't turn off sync from %s: %s\n", priv->filename, sqlite3_errmsg (priv->db));
 			ret = FALSE;
 			goto out;
 		}
@@ -457,10 +458,10 @@ ai_database_get_number_sqlite_cb (void *data, gint argc, gchar **argv, gchar **c
 }
 
 /*
- * ai_database_query_by_repo:
+ * ai_database_query_number_by_repo:
  */
 gboolean
-ai_database_query_by_repo (AiDatabase *database, const gchar *repo, guint *value, GError **error)
+ai_database_query_number_by_repo (AiDatabase *database, const gchar *repo, guint *value, GError **error)
 {
 	gboolean ret = TRUE;
 	gchar *statement = NULL;
@@ -496,10 +497,10 @@ out:
 }
 
 /*
- * ai_database_query_by_name:
+ * ai_database_query_number_by_name:
  */
 gboolean
-ai_database_query_by_name (AiDatabase *database, const gchar *name, guint *value, GError **error)
+ai_database_query_number_by_name (AiDatabase *database, const gchar *name, guint *value, GError **error)
 {
 	gboolean ret = TRUE;
 	gchar *statement = NULL;
@@ -532,6 +533,152 @@ ai_database_query_by_name (AiDatabase *database, const gchar *name, guint *value
 out:
 	g_free (statement);
 	return ret;
+}
+
+/**
+ * ai_database_search_sqlite_cb:
+ **/
+static gint
+ai_database_search_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+{
+	GPtrArray *array = (GPtrArray *) data;
+	guint i;
+	const gchar *application_id = NULL;
+	const gchar *package_name = NULL;
+	const gchar *categories = NULL;
+	const gchar *repo_id = NULL;
+	const gchar *icon_name = NULL;
+	const gchar *application_name = NULL;
+	const gchar *application_summary = NULL;
+	gboolean ret;
+	gint retval = 0;
+	GError *error = NULL;
+	AiResult *result;
+
+	for (i=0; i<(guint)argc; i++) {
+		if (g_strcmp0 (col_name[i], "application_id") == 0)
+			application_id = argv[i];
+		else if (g_strcmp0 (col_name[i], "package_name") == 0)
+			package_name = argv[i];
+		else if (g_strcmp0 (col_name[i], "categories") == 0)
+			categories = argv[i];
+		else if (g_strcmp0 (col_name[i], "repo_id") == 0)
+			repo_id = argv[i];
+		else if (g_strcmp0 (col_name[i], "icon_name") == 0)
+			icon_name = argv[i];
+		else if (g_strcmp0 (col_name[i], "application_name") == 0)
+			application_name = argv[i];
+		else if (g_strcmp0 (col_name[i], "application_summary") == 0)
+			application_summary = argv[i];
+	}
+
+	/* create new object and add to the array */
+	egg_debug ("application_id=%s, package_name=%s", application_id, package_name);
+	result = g_object_new (AI_TYPE_RESULT,
+			       "application-id", application_id,
+			       "package-name", package_name,
+			       "categories", categories,
+			       "repo-id", repo_id,
+			       "icon-name", icon_name,
+			       "application-name", application_name,
+			       "application-summary", application_summary,
+			       NULL);
+	g_ptr_array_add (array, result);
+	return 0;
+}
+
+/*
+ * ai_database_search_by_id:
+ */
+GPtrArray *
+ai_database_search_by_id (AiDatabase *database, const gchar *value, const gchar *locale, GError **error)
+{
+	gboolean ret = TRUE;
+	gchar *statement = NULL;
+	gint rc;
+	gchar *error_msg;
+	GPtrArray *array = NULL;
+	GPtrArray *array_tmp = NULL;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+	g_return_val_if_fail (value != NULL, FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
+
+	/* create array */
+	array_tmp = g_ptr_array_new_with_free_func ((GDestroyNotify) g_object_unref);
+
+	/* check that there are no existing entries from this repo */
+	statement = g_strdup_printf ("SELECT application_id, package_name, categories, "
+				     "repo_id, icon_name, application_name, application_summary "
+				     "FROM applications WHERE application_id = '%s'", value);
+	rc = sqlite3_exec (priv->db, statement, ai_database_search_sqlite_cb, (void*) array_tmp, &error_msg);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0, "SQL error: %s\n", sqlite3_errmsg (priv->db));
+		ret = FALSE;
+		sqlite3_free (error_msg);
+		goto out;
+	}
+
+	/* success */
+	array = g_ptr_array_ref (array_tmp);
+out:
+	g_ptr_array_unref (array_tmp);
+	g_free (statement);
+	return array;
+}
+
+/*
+ * ai_database_search_by_name:
+ */
+GPtrArray *
+ai_database_search_by_name (AiDatabase *database, const gchar *value, const gchar *locale, GError **error)
+{
+	gboolean ret = TRUE;
+	gchar *statement = NULL;
+	gint rc;
+	gchar *error_msg;
+	GPtrArray *array = NULL;
+	GPtrArray *array_tmp = NULL;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+	g_return_val_if_fail (value != NULL, FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
+
+	/* create array */
+	array_tmp = g_ptr_array_new_with_free_func ((GDestroyNotify) g_object_unref);
+
+	/* check that there are no existing entries from this repo */
+	statement = g_strdup_printf ("SELECT application_id, package_name, categories, "
+				     "repo_id, icon_name, application_name, application_summary "
+				     "FROM applications WHERE application_name LIKE '%%%s%%'", value);
+	rc = sqlite3_exec (priv->db, statement, ai_database_search_sqlite_cb, (void*) array_tmp, &error_msg);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0, "SQL error: %s\n", sqlite3_errmsg (priv->db));
+		ret = FALSE;
+		sqlite3_free (error_msg);
+		goto out;
+	}
+
+	/* success */
+	array = g_ptr_array_ref (array_tmp);
+out:
+	g_ptr_array_unref (array_tmp);
+	g_free (statement);
+	return array;
 }
 
 /*
@@ -718,6 +865,7 @@ ai_database_add_applications_sqlite_cb (void *data, gint argc, gchar **argv, gch
 	}
 
 	/* add to the target database */
+	egg_debug ("adding %s", application_id);
 	ret = ai_database_add_application (temp->database, application_id, package, categories, repo, icon, name, summary, &error);
 	if (!ret) {
 		egg_warning ("failed to add: %s", error->message);
@@ -1194,7 +1342,7 @@ ai_database_test (EggTest *test)
 
 	/************************************************************/
 	egg_test_title (test, "check correct number by repo");
-	ret = ai_database_query_by_repo (db, "fedora", &value, &error);
+	ret = ai_database_query_number_by_repo (db, "fedora", &value, &error);
 	if (!ret) {
 		egg_test_failed (test, "%s", error->message);
 		g_error_free (error);
@@ -1205,7 +1353,7 @@ ai_database_test (EggTest *test)
 
 	/************************************************************/
 	egg_test_title (test, "check correct number by name");
-	ret = ai_database_query_by_name (db, "gnome-packagekit", &value, &error);
+	ret = ai_database_query_number_by_name (db, "gnome-packagekit", &value, &error);
 	if (!ret) {
 		egg_test_failed (test, "%s", error->message);
 		g_error_free (error);
@@ -1264,7 +1412,7 @@ ai_database_test (EggTest *test)
 
 	/************************************************************/
 	egg_test_title (test, "check correct number by repo");
-	ret = ai_database_query_by_repo (db, "fedora", &value, &error);
+	ret = ai_database_query_number_by_repo (db, "fedora", &value, &error);
 	if (!ret) {
 		egg_test_failed (test, "%s", error->message);
 		g_error_free (error);
@@ -1275,7 +1423,7 @@ ai_database_test (EggTest *test)
 
 	/************************************************************/
 	egg_test_title (test, "check correct number by name");
-	ret = ai_database_query_by_name (db, "gnome-packagekit", &value, &error);
+	ret = ai_database_query_number_by_name (db, "gnome-packagekit", &value, &error);
 	if (!ret) {
 		egg_test_failed (test, "%s", error->message);
 		g_error_free (error);
@@ -1295,7 +1443,7 @@ ai_database_test (EggTest *test)
 
 	/************************************************************/
 	egg_test_title (test, "check correct number by repo");
-	ret = ai_database_query_by_repo (db, "fedora", &value, &error);
+	ret = ai_database_query_number_by_repo (db, "fedora", &value, &error);
 	if (!ret) {
 		egg_test_failed (test, "%s", error->message);
 		g_error_free (error);
@@ -1315,7 +1463,7 @@ ai_database_test (EggTest *test)
 
 	/************************************************************/
 	egg_test_title (test, "check correct number by name");
-	ret = ai_database_query_by_name (db, "gnome-packagekit", &value, &error);
+	ret = ai_database_query_number_by_name (db, "gnome-packagekit", &value, &error);
 	if (!ret) {
 		egg_test_failed (test, "%s", error->message);
 		g_error_free (error);
@@ -1386,7 +1534,7 @@ ai_database_test (EggTest *test)
 
 	/************************************************************/
 	egg_test_title (test, "check correct number by name");
-	ret = ai_database_query_by_name (db, "gnome-packagekit", &value, &error);
+	ret = ai_database_query_number_by_name (db, "gnome-packagekit", &value, &error);
 	if (!ret) {
 		egg_test_failed (test, "%s", error->message);
 		g_error_free (error);

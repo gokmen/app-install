@@ -22,6 +22,8 @@ libaishared_a_SOURCES =					\
 	egg-debug.h					\
 	ai-database.c					\
 	ai-database.h					\
+	ai-result.c					\
+	ai-result.h					\
 	ai-utils.c					\
 	ai-utils.h					\
 	ai-common.h					\
@@ -29,7 +31,7 @@ libaishared_a_SOURCES =					\
 
 sbin_PROGRAMS = app-install-create app-install-remove app-install-add
 
-bin_PROGRAMS = app-install-extract-package app-install-generate
+bin_PROGRAMS = app-install-extract-package app-install-generate app-install-query
 
 app_install_extract_package_SOURCES =			\
 	ai-extract-package.c				\
@@ -42,6 +44,12 @@ app_install_create_SOURCES =				\
 	$(NULL)
 app_install_create_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(ARCHIVE_LIBS) $(SQLITE_LIBS) libaishared.a
 app_install_create_CFLAGS = $(WARNINGFLAGS_C)
+
+app_install_query_SOURCES =				\
+	ai-query.c					\
+	$(NULL)
+app_install_query_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(ARCHIVE_LIBS) $(SQLITE_LIBS) libaishared.a
+app_install_query_CFLAGS = $(WARNINGFLAGS_C)
 
 app_install_remove_SOURCES =				\
 	ai-remove.c					\

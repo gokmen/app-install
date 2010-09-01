@@ -70,13 +70,21 @@ gboolean	 ai_database_remove_by_repo		(AiDatabase	*database,
 gboolean	 ai_database_remove_by_name		(AiDatabase	*database,
 							 const gchar	*name,
 							 GError		**error);
-gboolean	 ai_database_query_by_repo		(AiDatabase	*database,
+gboolean	 ai_database_query_number_by_repo	(AiDatabase	*database,
 							 const gchar	*repo,
 							 guint		*value,
 							 GError		**error);
-gboolean	 ai_database_query_by_name		(AiDatabase	*database,
+gboolean	 ai_database_query_number_by_name	(AiDatabase	*database,
 							 const gchar	*name,
 							 guint		*value,
+							 GError		**error);
+GPtrArray	*ai_database_search_by_id		(AiDatabase	*database,
+							 const gchar	*value,
+							 const gchar	*locale,
+							 GError		**error);
+GPtrArray	*ai_database_search_by_name		(AiDatabase	*database,
+							 const gchar	*value,
+							 const gchar	*locale,
 							 GError		**error);
 gboolean	 ai_database_import			(AiDatabase	*database,
 							 const gchar	*filename,
