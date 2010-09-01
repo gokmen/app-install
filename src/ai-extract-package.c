@@ -21,7 +21,6 @@
 
 #include "config.h"
 
-//#include <string.h>
 #include <glib.h>
 //#include <glib/gstdio.h>
 
@@ -53,7 +52,13 @@ main (int argc, char *argv[])
 	context = g_option_context_new (NULL);
 	g_option_context_set_summary (context, "Extract an rpm, fast");
 	g_option_context_add_main_entries (context, options, NULL);
-	g_option_context_parse (context, &argc, &argv, NULL);
+	ret = g_option_context_parse (context, &argc, &argv, &error);
+	if (!ret) {
+		g_print ("%s: %s\n", "Failed to parse command line", error->message);
+		g_error_free (error);
+		retval = 1;
+		goto out;
+	}
 	g_option_context_free (context);
 
 	/* check */

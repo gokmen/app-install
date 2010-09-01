@@ -72,7 +72,13 @@ main (int argc, char *argv[])
 	/* TRANSLATORS: tool that gets called when the command is not found */
 	g_option_context_set_summary (context, _("Application Database Installer"));
 	g_option_context_add_main_entries (context, options, NULL);
-	g_option_context_parse (context, &argc, &argv, NULL);
+	ret = g_option_context_parse (context, &argc, &argv, &error);
+	if (!ret) {
+		g_print ("%s: %s\n", _("Failed to parse command line"), error->message);
+		g_error_free (error);
+		retval = 1;
+		goto out;
+	}
 	g_option_context_free (context);
 
 	g_type_init ();
