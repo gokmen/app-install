@@ -131,7 +131,7 @@ def main():
         # extract
         directory = dist + '/root'
         path = '../cache/' + relativepath
-        cmd = "rpm2cpio %s | cpio --extract --make-directories --quiet" % path
+        cmd = "app-install-extract-package --package=%s --directory=%s" % (path, directory)
         print 'extracting', path
         p = subprocess.Popen(cmd, cwd=directory, shell=True, stdout=subprocess.PIPE)
         p.wait()
