@@ -495,15 +495,16 @@ main (int argc, char *argv[])
 		ai_generate_copy_icons (root, icondir, icon_name);
 
 out:
-	/* close it */
-	ret = ai_database_close (db, FALSE, &error);
-	if (!ret) {
-		g_print ("%s: %s\n", _("Failed to close"), error->message);
-		g_error_free (error);
-		retval = 1;
-	}
-	if (db != NULL)
+	/* close and free it */
+	if (db != NULL) {
+		ret = ai_database_close (db, FALSE, &error);
+		if (!ret) {
+			g_print ("%s: %s\n", _("Failed to close"), error->message);
+			g_error_free (error);
+			retval = 1;
+		}
 		g_object_unref (db);
+	}
 	if (locales != NULL) {
 		g_ptr_array_foreach (locales, (GFunc) g_free, NULL);
 		g_ptr_array_free (locales, TRUE);
