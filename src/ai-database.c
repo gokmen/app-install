@@ -566,14 +566,16 @@ ai_database_search_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_n
 			repo_id = argv[i];
 		else if (g_strcmp0 (col_name[i], "icon_name") == 0)
 			icon_name = argv[i];
-		else if (g_strcmp0 (col_name[i], "application_name") == 0)
+		else if (g_strstr_len (col_name[i], -1, "application_name") != NULL)
 			application_name = argv[i];
-		else if (g_strcmp0 (col_name[i], "application_summary") == 0)
+		else if (g_strstr_len (col_name[i], -1, "application_summary") != NULL)
 			application_summary = argv[i];
+		else
+			egg_warning ("unhandled column: %s", col_name[i]);
 	}
 
 	/* create new object and add to the array */
-	egg_debug ("application_id=%s, package_name=%s", application_id, package_name);
+	egg_debug ("application_id=%s, package_name=%s, application_name=%s", application_id, package_name, application_name);
 	result = g_object_new (AI_TYPE_RESULT,
 			       "application-id", application_id,
 			       "package-name", package_name,
@@ -591,7 +593,7 @@ ai_database_search_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_n
  * ai_database_search_by_id:
  */
 GPtrArray *
-ai_database_search_by_id (AiDatabase *database, const gchar *value, const gchar *locale, GError **error)
+ai_database_search_by_id (AiDatabase *database, const gchar *value, GError **error)
 {
 	gboolean ret = TRUE;
 	gchar *statement = NULL;
@@ -638,7 +640,7 @@ out:
  * ai_database_search_by_name:
  */
 GPtrArray *
-ai_database_search_by_name (AiDatabase *database, const gchar *value, const gchar *locale, GError **error)
+ai_database_search_by_name (AiDatabase *database, const gchar *value, GError **error)
 {
 	gboolean ret = TRUE;
 	gchar *statement = NULL;
@@ -665,6 +667,107 @@ ai_database_search_by_name (AiDatabase *database, const gchar *value, const gcha
 	statement = g_strdup_printf ("SELECT application_id, package_name, categories, "
 				     "repo_id, icon_name, application_name, application_summary "
 				     "FROM applications WHERE application_name LIKE '%%%s%%'", value);
+	rc = sqlite3_exec (priv->db, statement, ai_database_search_sqlite_cb, (void*) array_tmp, &error_msg);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0, "SQL error: %s\n", sqlite3_errmsg (priv->db));
+		ret = FALSE;
+		sqlite3_free (error_msg);
+		goto out;
+	}
+
+	/* success */
+	array = g_ptr_array_ref (array_tmp);
+out:
+	g_ptr_array_unref (array_tmp);
+	g_free (statement);
+	return array;
+}
+
+
+/*
+ * ai_database_search_by_id_locale:
+ */
+GPtrArray *
+ai_database_search_by_id_locale (AiDatabase *database, const gchar *value, const gchar *locale, GError **error)
+{
+	gboolean ret = TRUE;
+	gchar *statement = NULL;
+	gint rc;
+	gchar *error_msg;
+	GPtrArray *array = NULL;
+	GPtrArray *array_tmp = NULL;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+	g_return_val_if_fail (value != NULL, FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
+
+	/* create array */
+	array_tmp = g_ptr_array_new_with_free_func ((GDestroyNotify) g_object_unref);
+
+	/* check that there are no existing entries from this repo */
+	statement = g_strdup_printf ("SELECT a.application_id, a.package_name, a.categories, "
+				     "a.repo_id, a.icon_name, "
+				     "COALESCE(t.application_name, a.application_name), "
+				     "COALESCE(t.application_summary, a.application_summary) "
+				     "FROM applications a LEFT JOIN translations t ON a.application_id = t.application_id AND t.locale = 'pt_BR' "
+				     "WHERE a.application_id = '%s'", value);
+	rc = sqlite3_exec (priv->db, statement, ai_database_search_sqlite_cb, (void*) array_tmp, &error_msg);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0, "SQL error: %s\n", sqlite3_errmsg (priv->db));
+		ret = FALSE;
+		sqlite3_free (error_msg);
+		goto out;
+	}
+
+	/* success */
+	array = g_ptr_array_ref (array_tmp);
+out:
+	g_ptr_array_unref (array_tmp);
+	g_free (statement);
+	return array;
+}
+
+/*
+ * ai_database_search_by_name_locale:
+ */
+GPtrArray *
+ai_database_search_by_name_locale (AiDatabase *database, const gchar *value, const gchar *locale, GError **error)
+{
+	gboolean ret = TRUE;
+	gchar *statement = NULL;
+	gint rc;
+	gchar *error_msg;
+	GPtrArray *array = NULL;
+	GPtrArray *array_tmp = NULL;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+	g_return_val_if_fail (value != NULL, FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
+
+	/* create array */
+	array_tmp = g_ptr_array_new_with_free_func ((GDestroyNotify) g_object_unref);
+
+	/* check that there are no existing entries from this repo */
+	statement = g_strdup_printf ("SELECT a.application_id, a.package_name, a.categories, "
+				     "a.repo_id, a.icon_name, "
+				     "COALESCE(t.application_name, a.application_name), "
+				     "COALESCE(t.application_summary, a.application_summary) "
+				     "FROM applications a LEFT JOIN translations t ON a.application_id = t.application_id AND t.locale = '%s' "
+				     "WHERE a.application_name LIKE '%%%s%%'", locale, value);
 	rc = sqlite3_exec (priv->db, statement, ai_database_search_sqlite_cb, (void*) array_tmp, &error_msg);
 	if (rc != SQLITE_OK) {
 		g_set_error (error, 1, 0, "SQL error: %s\n", sqlite3_errmsg (priv->db));

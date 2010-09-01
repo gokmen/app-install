@@ -80,9 +80,15 @@ gboolean	 ai_database_query_number_by_name	(AiDatabase	*database,
 							 GError		**error);
 GPtrArray	*ai_database_search_by_id		(AiDatabase	*database,
 							 const gchar	*value,
-							 const gchar	*locale,
 							 GError		**error);
 GPtrArray	*ai_database_search_by_name		(AiDatabase	*database,
+							 const gchar	*value,
+							 GError		**error);
+GPtrArray	*ai_database_search_by_id_locale	(AiDatabase	*database,
+							 const gchar	*value,
+							 const gchar	*locale,
+							 GError		**error);
+GPtrArray	*ai_database_search_by_name_locale	(AiDatabase	*database,
 							 const gchar	*value,
 							 const gchar	*locale,
 							 GError		**error);

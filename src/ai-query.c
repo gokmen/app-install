@@ -45,6 +45,7 @@ main (int argc, char *argv[])
 	GPtrArray *array = NULL;
 	guint i;
 	AiResult *result;
+	const gchar *locale;
 
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
@@ -94,9 +95,12 @@ main (int argc, char *argv[])
 		goto out;
 	}
 
+	/* get locale */
+	locale = setlocale (LC_ALL, NULL);
+
 	/* mode */
 	if (g_strcmp0 (argv[1], "id") == 0) {
-		array = ai_database_search_by_id (db, argv[2], "C", &error);
+		array = ai_database_search_by_id_locale (db, argv[2], locale, &error);
 		if (array == NULL) {
 			g_print ("%s: %s\n", _("Failed to search"), error->message);
 			g_error_free (error);
@@ -104,7 +108,7 @@ main (int argc, char *argv[])
 			goto out;
 		}
 	} else if (g_strcmp0 (argv[1], "name") == 0) {
-		array = ai_database_search_by_name (db, argv[2], "C", &error);
+		array = ai_database_search_by_name_locale (db, argv[2], locale, &error);
 		if (array == NULL) {
 			g_print ("%s: %s\n", _("Failed to search"), error->message);
 			g_error_free (error);
