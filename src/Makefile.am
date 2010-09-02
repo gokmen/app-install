@@ -29,6 +29,8 @@ libaishared_a_SOURCES =					\
 	ai-common.h					\
 	$(NULL)
 
+libaishared_a_CFLAGS = $(WARNINGFLAGS_C)
+
 sbin_PROGRAMS = app-install-create app-install-remove app-install-add
 
 bin_PROGRAMS = app-install-extract-package app-install-generate app-install-query

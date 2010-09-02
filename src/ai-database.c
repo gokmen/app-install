@@ -67,7 +67,7 @@ ai_database_set_filename (AiDatabase *database, const gchar *filename, GError **
 	gboolean ret = TRUE;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_if_fail (AI_IS_DATABASE (database));
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
 
 	/* check database is in correct state */
 	if (priv->locked) {
@@ -100,7 +100,7 @@ ai_database_set_icon_path (AiDatabase *database, const gchar *icon_path, GError 
 	gboolean ret = TRUE;
 	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
 
-	g_return_if_fail (AI_IS_DATABASE (database));
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
 
 	/* check database is in correct state */
 	if (priv->locked) {
@@ -550,9 +550,6 @@ ai_database_search_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_n
 	const gchar *icon_name = NULL;
 	const gchar *application_name = NULL;
 	const gchar *application_summary = NULL;
-	gboolean ret;
-	gint retval = 0;
-	GError *error = NULL;
 	AiResult *result;
 
 	for (i=0; i<(guint)argc; i++) {
@@ -595,7 +592,6 @@ ai_database_search_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_n
 GPtrArray *
 ai_database_search_by_id (AiDatabase *database, const gchar *value, GError **error)
 {
-	gboolean ret = TRUE;
 	gchar *statement = NULL;
 	gint rc;
 	gchar *error_msg;
@@ -609,7 +605,6 @@ ai_database_search_by_id (AiDatabase *database, const gchar *value, GError **err
 	/* check database is in correct state */
 	if (!priv->locked) {
 		g_set_error (error, 1, 0, "database is not open");
-		ret = FALSE;
 		goto out;
 	}
 
@@ -623,7 +618,6 @@ ai_database_search_by_id (AiDatabase *database, const gchar *value, GError **err
 	rc = sqlite3_exec (priv->db, statement, ai_database_search_sqlite_cb, (void*) array_tmp, &error_msg);
 	if (rc != SQLITE_OK) {
 		g_set_error (error, 1, 0, "SQL error: %s\n", sqlite3_errmsg (priv->db));
-		ret = FALSE;
 		sqlite3_free (error_msg);
 		goto out;
 	}
@@ -642,7 +636,6 @@ out:
 GPtrArray *
 ai_database_search_by_name (AiDatabase *database, const gchar *value, GError **error)
 {
-	gboolean ret = TRUE;
 	gchar *statement = NULL;
 	gint rc;
 	gchar *error_msg;
@@ -656,7 +649,6 @@ ai_database_search_by_name (AiDatabase *database, const gchar *value, GError **e
 	/* check database is in correct state */
 	if (!priv->locked) {
 		g_set_error (error, 1, 0, "database is not open");
-		ret = FALSE;
 		goto out;
 	}
 
@@ -670,7 +662,6 @@ ai_database_search_by_name (AiDatabase *database, const gchar *value, GError **e
 	rc = sqlite3_exec (priv->db, statement, ai_database_search_sqlite_cb, (void*) array_tmp, &error_msg);
 	if (rc != SQLITE_OK) {
 		g_set_error (error, 1, 0, "SQL error: %s\n", sqlite3_errmsg (priv->db));
-		ret = FALSE;
 		sqlite3_free (error_msg);
 		goto out;
 	}
@@ -690,7 +681,6 @@ out:
 GPtrArray *
 ai_database_search_by_id_locale (AiDatabase *database, const gchar *value, const gchar *locale, GError **error)
 {
-	gboolean ret = TRUE;
 	gchar *statement = NULL;
 	gint rc;
 	gchar *error_msg;
@@ -704,7 +694,6 @@ ai_database_search_by_id_locale (AiDatabase *database, const gchar *value, const
 	/* check database is in correct state */
 	if (!priv->locked) {
 		g_set_error (error, 1, 0, "database is not open");
-		ret = FALSE;
 		goto out;
 	}
 
@@ -721,7 +710,6 @@ ai_database_search_by_id_locale (AiDatabase *database, const gchar *value, const
 	rc = sqlite3_exec (priv->db, statement, ai_database_search_sqlite_cb, (void*) array_tmp, &error_msg);
 	if (rc != SQLITE_OK) {
 		g_set_error (error, 1, 0, "SQL error: %s\n", sqlite3_errmsg (priv->db));
-		ret = FALSE;
 		sqlite3_free (error_msg);
 		goto out;
 	}
@@ -740,7 +728,6 @@ out:
 GPtrArray *
 ai_database_search_by_name_locale (AiDatabase *database, const gchar *value, const gchar *locale, GError **error)
 {
-	gboolean ret = TRUE;
 	gchar *statement = NULL;
 	gint rc;
 	gchar *error_msg;
@@ -754,7 +741,6 @@ ai_database_search_by_name_locale (AiDatabase *database, const gchar *value, con
 	/* check database is in correct state */
 	if (!priv->locked) {
 		g_set_error (error, 1, 0, "database is not open");
-		ret = FALSE;
 		goto out;
 	}
 
@@ -771,7 +757,6 @@ ai_database_search_by_name_locale (AiDatabase *database, const gchar *value, con
 	rc = sqlite3_exec (priv->db, statement, ai_database_search_sqlite_cb, (void*) array_tmp, &error_msg);
 	if (rc != SQLITE_OK) {
 		g_set_error (error, 1, 0, "SQL error: %s\n", sqlite3_errmsg (priv->db));
-		ret = FALSE;
 		sqlite3_free (error_msg);
 		goto out;
 	}

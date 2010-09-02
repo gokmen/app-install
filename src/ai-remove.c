@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <glib/gi18n.h>
+#include <locale.h>
 
 #include "ai-common.h"
 #include "ai-database.h"
@@ -140,6 +141,6 @@ out:
 	g_free (repo);
 	g_free (package);
 	g_free (icondir);
-	return 0;
+	return retval;
 }
 

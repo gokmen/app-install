@@ -24,6 +24,7 @@
 #include <string.h>
 #include <glib/gi18n.h>
 #include <gio/gio.h>
+#include <locale.h>
 
 #include "ai-common.h"
 #include "ai-database.h"
