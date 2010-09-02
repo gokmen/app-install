@@ -26,6 +26,7 @@ New Features:
  - Add app-install-query, a tool to query the app-install database (Richard Hughes)
  - Add app-install-extract-package to explode a distro package to a tree of files (Richard Hughes)
  - Add a metric-shedload of self tests for AiDatabase (Richard Hughes)
+ - Add a metadata generator for apt (Daniel Nicoletti)
 
 Bugfixes:
  - Fix app-install-generate-yum to work with the new type of database format (Richard Hughes)
