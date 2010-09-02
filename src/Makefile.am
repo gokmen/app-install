@@ -74,8 +74,6 @@ check_PROGRAMS =					\
 
 ai_self_test_SOURCES =					\
 	ai-self-test.c					\
-	egg-test.h					\
-	egg-test.c					\
 	$(libaishared_a_SOURCES)			\
 	$(NULL)
 

@@ -1,0 +1,39 @@
+app-install Release Notes
+
+1. Write NEWS entries for app-install in the same format as usual.
+
+git shortlog APP_INSTALL_0_1.0.. | grep -i -v trivial | grep -v Merge > NEWS.new
+
+Version 0.1.0
+~~~~~~~~~~~
+Released: 2010-xx-xx
+
+Translations:
+New Features:
+Bugfixes:
+
+2. Commit changes to git:
+
+git commit -a -m "Released app-install 0.1.0"
+git tag -s -f -m "Released app-install 0.1.0" APP_INSTALL_0_1_0
+<wait>
+git push --tags
+git push
+
+3. Generate the tarball:
+
+make dist
+
+4. Upload tarball:
+
+scp *.tar.* packagekit.org:/srv/www/html/releases/
+
+5. Do post release version bump in configure.ac
+
+6. Commit changes:
+
+git commit -a -m "trivial: post release version bump"
+git push
+
+7. Send an email to packagekit@lists.freedesktop.org
+
