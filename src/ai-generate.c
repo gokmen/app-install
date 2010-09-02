@@ -35,6 +35,14 @@
 static const gchar *icon_sizes[] = { "22x22", "24x24", "32x32", "48x48", "scalable", NULL };
 static guint icon_sizes_numeric[] = { 22, 24, 32, 48, 0};
 
+#ifndef __FreeBSD__
+#define APPLICATIONS_DIR "/usr/share/applications"
+#define ICONS_DIR "/usr/share/icons"
+#else
+#define APPLICATIONS_DIR "/usr/local/share/applications"
+#define ICONS_DIR "/usr/local/share/icons"
+#endif
+
 typedef struct {
 	gchar	*key;
 	gchar	*value;
@@ -312,7 +320,7 @@ ai_generate_copy_icons (const gchar *root, const gchar *directory, const gchar *
 			icon_name_full = g_strdup_printf ("%s.png", icon_name);
 
 		/* build the icon path */
-		iconpath = g_build_filename (root, "/usr/share/icons/hicolor", icon_sizes[i], "apps", icon_name_full, NULL);
+		iconpath = g_build_filename (root, ICONS_DIR, "hicolor", icon_sizes[i], "apps", icon_name_full, NULL);
 		ret = g_file_test (iconpath, G_FILE_TEST_EXISTS);
 		if (ret) {
 			dest = g_build_filename (directory, icon_sizes[i], icon_name_full, NULL);
@@ -547,7 +555,7 @@ main (int argc, char *argv[])
 	ai_generate_create_icon_directories (icondir);
 
 	if (desktopfile[0] != '/') {
-		filename = g_build_filename (root, "/usr/share/applications", desktopfile, NULL);
+		filename = g_build_filename (root, APPLICATIONS_DIR, desktopfile, NULL);
 	} else {
 		filename = g_build_filename (root, desktopfile, NULL);
 	}
