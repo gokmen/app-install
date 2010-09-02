@@ -104,14 +104,14 @@ app-install-remove --repo=livna --icondir=/usr/share/app-install/icons --cache=/
 
 What to do in packages:
 PackageKit(install):	app-install-create
-livna-release(install):	app-install-add --repo=livna --source=/usr/share/livna-release/desktop.sqldata --icondir=/usr/share/livna-release/icons
+livna-release(install):	app-install-add --repo=livna --source=/usr/share/livna-release/desktop.db --icondir=/usr/share/livna-release/icons
 livna-release(removal):	app-install-remove --repo=livna
 livna-release(upgrade): app-install-remove --repo=livna
-livna-release(upgrade): app-install-add --repo=livna --source=/usr/share/livna-release/desktop.sqldata --icondir=/usr/share/livna-release/icons
+livna-release(upgrade): app-install-add --repo=livna --source=/usr/share/livna-release/desktop.db --icondir=/usr/share/livna-release/icons
 
 all distro specific stuff to live in backends/, but typically:
 app-install-generate-yum.py --name=livna --cache=~/livna-apps.db
-app-install-generate --repo=livna --applicationdir=/usr/share/applications --icondir=/usr/share/icons --outputdir=./icons --cache=./desktop.sqldata
+app-install-generate --repo=livna --applicationdir=/usr/share/applications --icondir=/usr/share/icons --outputdir=./icons --cache=./desktop.db
 
 
 == Open questions ===

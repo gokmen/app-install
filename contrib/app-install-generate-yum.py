@@ -72,7 +72,7 @@ def main():
     yb.conf.cache = 0
 
     # open sql file
-    db = dist + "/%s.sqldata" % reponame
+    db = dist + "/%s.db" % reponame
     cmd = "../src/app-install-create --database=%s" % db
     print 'creating database'
     p = subprocess.Popen(cmd, cwd='.', shell=True, stdout=subprocess.PIPE)

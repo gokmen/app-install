@@ -99,13 +99,13 @@ and extract the data from the desktop files. There's a cache, so repeated runs
 of this don't have to re-download all the data. This tool takes about 10 minutes
 to run when the download has completed.
 
-This tools creates ./dist/rawhide-icons.tar.gz and ./dist/rawhide.sqldata which
+This tools creates ./dist/rawhide-icons.tar.gz and ./dist/rawhide.db which
 are designed to be shipped in a package file.
 
 In a package file, for instance, fedora-app-install, the post action would
 be something like:
 
-$ app-install-add --repo=fedora --source=/var/lib/app-install/rawhide.sqldata
+$ app-install-add --repo=fedora --source=/var/lib/app-install/rawhide.db
 
 and in the preun:
 
