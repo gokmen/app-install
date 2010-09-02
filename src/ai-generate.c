@@ -383,6 +383,45 @@ ai_generate_app_icon_for_pixbuf (GdkPixbuf *pixbuf, guint size, const gchar *app
 }
 
 /**
+ * ai_generate_icon_name_is_whitelisted:
+ **/
+static gboolean
+ai_generate_icon_name_is_whitelisted (const gchar *icon_name, gboolean *whitelisted, GError **error)
+{
+	gboolean ret;
+	gchar *contents = NULL;
+	gchar **split;
+	guint i;
+	gchar *icon_name_no_suffix = NULL;
+
+	/* remove suffix */
+	icon_name_no_suffix = g_strdup (icon_name);
+	g_strdelimit (icon_name_no_suffix, ".", '\0');
+
+	/* load whitelist file */
+	ret = g_file_get_contents (DATADIR "/app-install/whitelist.dat", &contents, NULL, error);
+	if (!ret)
+		goto out;
+
+	/* split into lines */
+	split = g_strsplit (contents, "\n", -1);
+	for (i=0; split[i] != NULL; i++) {
+		if (g_strcmp0 (icon_name_no_suffix, split[i]) == 0) {
+			*whitelisted = TRUE;
+			goto out;
+		}
+	}
+
+	/* we failed */
+	*whitelisted = FALSE;
+out:
+	g_free (icon_name_no_suffix);
+	g_free (contents);
+	g_strfreev (split);
+	return ret;
+}
+
+/**
  * main:
  **/
 int
@@ -406,6 +445,7 @@ main (int argc, char *argv[])
 	AiDatabase *db = NULL;
 	gchar *database = NULL;
 	guint i;
+	gboolean whitelisted = FALSE;
 
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
@@ -534,6 +574,19 @@ main (int argc, char *argv[])
 		goto out;
 	}
 
+	/* is this a whitelisted (icon-name-theme) icon */
+	ret = ai_generate_icon_name_is_whitelisted (icon_name, &whitelisted, &error);
+	if (!ret) {
+		g_print ("Failed to load whitelist: %s\n", error->message);
+		g_error_free (error);
+		retval = 1;
+		goto out;
+	}
+	if (whitelisted) {
+		egg_debug ("%s is whitelisted, no need to copy icon", icon_name);
+		goto skip_copy;
+	}
+
 	/* fist assume the application is well behaved and installed icons to hicolor */
 	ret = ai_generate_copy_icons (root, icondir, icon_name);
 	if (!ret) {
@@ -612,6 +665,7 @@ main (int argc, char *argv[])
 		}
 	}
 
+skip_copy:
 	/* form application SQL */
 	ret = ai_generate_applications_sql (db, data, repo, package, application_id, &error);
 	if (!ret) {

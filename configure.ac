@@ -121,6 +121,7 @@ Makefile
 docs/Makefile
 contrib/Makefile
 src/Makefile
+data/Makefile
 po/Makefile.in
 ])
 AC_OUTPUT

@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = 1.7
 
-SUBDIRS = po src docs contrib
+SUBDIRS = po src docs contrib data
 
 snapshot:
 	$(MAKE) dist distdir=$(PACKAGE)-$(VERSION)-`date +"%Y%m%d"`
