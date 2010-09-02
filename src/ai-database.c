@@ -1155,7 +1155,7 @@ ai_database_import_by_name (AiDatabase *database,
 	/* copy all the icons */
 	if (icondir != NULL) {
 		statement = g_strdup_printf ("SELECT application_id, icon_name FROM applications WHERE package_name = '%s'", name);
-		rc = sqlite3_exec (foreign_db, statement, ai_database_copy_icons_sqlite_cb, (void*) icondir, &error_msg);
+		rc = sqlite3_exec (foreign_db, statement, ai_database_copy_icons_sqlite_cb, (void*) temp, &error_msg);
 		g_free (statement);
 		if (rc != SQLITE_OK) {
 			g_set_error (error, 1, 0, "SQL error: %s\n", error_msg);
@@ -1260,7 +1260,7 @@ ai_database_import_by_repo (AiDatabase *database,
 	/* copy all the icons */
 	if (icondir != NULL) {
 		statement = g_strdup_printf ("SELECT application_id, icon_name FROM applications WHERE repo_id = '%s'", repo);
-		rc = sqlite3_exec (foreign_db, statement, ai_database_copy_icons_sqlite_cb, (void*) icondir, &error_msg);
+		rc = sqlite3_exec (foreign_db, statement, ai_database_copy_icons_sqlite_cb, (void*) temp, &error_msg);
 		g_free (statement);
 		if (rc != SQLITE_OK) {
 			g_set_error (error, 1, 0, "SQL error: %s\n", error_msg);
