@@ -25,6 +25,7 @@
 #include <glib/gi18n.h>
 #include <gio/gio.h>
 #include <locale.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 
 #include "ai-common.h"
 #include "ai-database.h"
@@ -32,6 +33,7 @@
 #include "egg-debug.h"
 
 static const gchar *icon_sizes[] = { "22x22", "24x24", "32x32", "48x48", "scalable", NULL };
+static guint icon_sizes_numeric[] = { 22, 24, 32, 48, 0};
 
 typedef struct {
 	gchar	*key;
@@ -294,6 +296,9 @@ ai_generate_copy_icons (const gchar *root, const gchar *directory, const gchar *
 	gchar *iconpath;
 	gchar *icon_name_full;
 	guint i;
+	gboolean found_any_icons = FALSE;
+
+	egg_debug ("looking for %s", icon_name);
 
 	/* copy all icon sizes if they exist */
 	for (i=0; icon_sizes[i] != NULL; i++) {
@@ -319,6 +324,8 @@ ai_generate_copy_icons (const gchar *root, const gchar *directory, const gchar *
 				egg_warning ("cannot copy %s: %s", dest, error->message);
 				g_clear_error (&error);
 			}
+			/* success */
+			found_any_icons = TRUE;
 			g_object_unref (file);
 			g_object_unref (remote);
 			g_free (dest);
@@ -328,7 +335,51 @@ ai_generate_copy_icons (const gchar *root, const gchar *directory, const gchar *
 		g_free (iconpath);
 		g_free (icon_name_full);
 	}
-	return TRUE;
+
+	return found_any_icons;
+}
+
+/**
+ * ai_generate_save_pixbuf_size:
+ **/
+static gboolean
+ai_generate_save_pixbuf_size (GdkPixbuf *pixbuf, guint size, const gchar *filename, GError **error)
+{
+	GdkPixbuf *new;
+	gchar *buffer = NULL;
+	gsize buffer_size;
+	gboolean ret;
+
+	/* get new sampled pixbuf */
+	new = gdk_pixbuf_scale_simple (pixbuf, size, size, GDK_INTERP_BILINEAR);
+	ret = gdk_pixbuf_save_to_buffer (new, &buffer, &buffer_size, "png", error, NULL);
+	if (!ret)
+		goto out;
+
+	/* save to file */
+	egg_debug ("saving to %s", filename);
+	ret = g_file_set_contents (filename, buffer, buffer_size, error);
+	if (!ret)
+		goto out;
+out:
+	g_object_unref (new);
+	return ret;
+}
+
+/**
+ * ai_generate_app_icon_for_pixbuf:
+ **/
+static gboolean
+ai_generate_app_icon_for_pixbuf (GdkPixbuf *pixbuf, guint size, const gchar *application_id, const gchar *icondir, GError **error)
+{
+	gboolean ret;
+	gchar *path;
+
+	/* generate destination */
+	path = g_strdup_printf ("%s/%ix%i/%s.png", icondir, size, size, application_id);
+	ret = ai_generate_save_pixbuf_size (pixbuf, size, path, error);
+	g_free (path);
+	return ret;
 }
 
 /**
@@ -354,6 +405,7 @@ main (int argc, char *argv[])
 	gchar *filename = NULL;
 	AiDatabase *db = NULL;
 	gchar *database = NULL;
+	guint i;
 
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
@@ -467,15 +519,79 @@ main (int argc, char *argv[])
 	/* extract data */
 	data = ai_generate_get_desktop_data (filename);
 	if (data == NULL) {
-		g_print ("Could not get desktop data from %s\n", filename);
+		g_print ("Failed to get desktop data from %s\n", filename);
 		retval = 1;
 		goto out;
+	}
+
+	/* copy icons */
+	icon_name = ai_generate_get_value_for_locale (data, "Icon", NULL);
+
+	/* we don't add applications without icons */
+	if (icon_name == NULL || icon_name[0] == '\0') {
+		g_print ("Package %s does not reference an icon\n", package);
+		retval = 1;
+		goto out;
+	}
+
+	/* fist assume the application is well behaved and installed icons to hicolor */
+	ret = ai_generate_copy_icons (root, icondir, icon_name);
+	if (!ret) {
+		GdkPixbuf *pixbuf;
+		gchar *path;
+
+		/* load this local file */
+		path = g_build_filename (root, icon_name, NULL);
+		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
+			g_free (path);
+			path = g_strdup_printf ("%s/usr/share/pixmaps/%s.png", root, icon_name);
+		}
+		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
+			g_free (path);
+			path = g_strdup_printf ("%s/usr/share/pixmaps/%s.xpm", root, icon_name);
+		}
+		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
+			g_free (path);
+			path = g_strdup_printf ("%s/usr/share/pixmaps/%s", root, icon_name);
+		}
+		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
+			g_print ("Failed to load the icon '%s' for %s\n", icon_name, package);
+			retval = 1;
+			goto out;
+		}
+
+		pixbuf = gdk_pixbuf_new_from_file (path, &error);
+		g_free (path);
+		if (pixbuf == NULL) {
+			g_print ("Failed to open image '%s' for %s: %s\n", icon_name, package, error->message);
+			g_error_free (error);
+			retval = 1;
+			goto out;
+		}
+
+		/* save each icon size */
+		for (i=0; icon_sizes_numeric[i] > 0; i++) {
+			ret = ai_generate_app_icon_for_pixbuf (pixbuf, icon_sizes_numeric[i], application_id, icondir, &error);
+			if (!ret) {
+				g_print ("Failed to save a scaled icon for %s in %s: %s", icon_name, package, error->message);
+				g_error_free (error);
+				retval = 1;
+				goto out;
+			}
+		}
+		g_object_unref (pixbuf);
+
+		if (!ret) {
+			g_print ("Failed to find an icon for %s\n", package);
+			retval = 1;
+			goto out;
+		}
 	}
 
 	/* form application SQL */
 	ret = ai_generate_applications_sql (db, data, repo, package, application_id, &error);
 	if (!ret) {
-		g_print ("Could not generate application data for %s: %s\n", package, error->message);
+		g_print ("Failed to generate application data for %s: %s\n", package, error->message);
 		g_error_free (error);
 		retval = 1;
 		goto out;
@@ -484,7 +600,7 @@ main (int argc, char *argv[])
 	/* get list of locales in this file */
 	locales = ai_generate_get_locales (data);
 	if (locales == NULL) {
-		g_print ("Could not get locale data from %s\n", filename);
+		g_print ("Failed to get locale data from %s\n", filename);
 		retval = 1;
 		goto out;
 	}
@@ -492,16 +608,11 @@ main (int argc, char *argv[])
 	/* form translations SQL */
 	ret = ai_generate_translations_sql (db, data, locales, application_id, &error);
 	if (!ret) {
-		g_print ("Could not generate translation data for %s: %s\n", package, error->message);
+		g_print ("Failed to generate translation data for %s: %s\n", package, error->message);
 		g_error_free (error);
 		retval = 1;
 		goto out;
 	}
-
-	/* copy icons */
-	icon_name = ai_generate_get_value_for_locale (data, "Icon", NULL);
-	if (icon_name != NULL && !g_str_has_suffix (icon_name, ".png"))
-		ai_generate_copy_icons (root, icondir, icon_name);
 
 out:
 	/* close and free it */
