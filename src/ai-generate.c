@@ -544,11 +544,35 @@ main (int argc, char *argv[])
 		path = g_build_filename (root, icon_name, NULL);
 		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
 			g_free (path);
+			path = g_strdup_printf ("%s/usr/share/icons/%s.png", root, icon_name);
+		}
+		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
+			g_free (path);
+			path = g_strdup_printf ("%s/usr/share/icons/hicolor/64x64/apps/%s", root, icon_name);
+		}
+		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
+			g_free (path);
+			path = g_strdup_printf ("%s/usr/share/icons/hicolor/64x64/apps/%s.png", root, icon_name);
+		}
+		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
+			g_free (path);
+			path = g_strdup_printf ("%s/usr/share/icons/hicolor/128x128/apps/%s", root, icon_name);
+		}
+		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
+			g_free (path);
+			path = g_strdup_printf ("%s/usr/share/icons/hicolor/128x128/apps/%s.png", root, icon_name);
+		}
+		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
+			g_free (path);
 			path = g_strdup_printf ("%s/usr/share/pixmaps/%s.png", root, icon_name);
 		}
 		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
 			g_free (path);
 			path = g_strdup_printf ("%s/usr/share/pixmaps/%s.xpm", root, icon_name);
+		}
+		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
+			g_free (path);
+			path = g_strdup_printf ("%s/usr/share/pixmaps/%s.svg", root, icon_name);
 		}
 		if (!g_file_test (path, G_FILE_TEST_EXISTS)) {
 			g_free (path);
