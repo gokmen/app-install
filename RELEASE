@@ -4,7 +4,7 @@ app-install Release Notes
 
 git shortlog APP_INSTALL_0_1.0.. | grep -i -v trivial | grep -v Merge > NEWS.new
 
-Version 0.1.0
+Version 0.1.1
 ~~~~~~~~~~~
 Released: 2010-xx-xx
 
@@ -14,8 +14,8 @@ Bugfixes:
 
 2. Commit changes to git:
 
-git commit -a -m "Released app-install 0.1.0"
-git tag -s -f -m "Released app-install 0.1.0" APP_INSTALL_0_1_0
+git commit -a -m "Released app-install 0.1.1"
+git tag -s -f -m "Released app-install 0.1.1" APP_INSTALL_0_1_1
 <wait>
 git push --tags
 git push
@@ -37,3 +37,7 @@ git push
 
 7. Send an email to packagekit@lists.freedesktop.org
 
+app-install is a metadata schema and some simple tools for getting data about applications.
+
+Tarball is located here: http://www.packagekit.org/releases/
+Homepage is here: http://github.com/hughsie/app-install
