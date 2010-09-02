@@ -8,9 +8,9 @@ License: GPLv2+
 Group: System Environment/Libraries
 URL: http://github.com/hughsie/app-install
 Source0: http://www.packagekit.org/releases/%{name}-%{version}.tar.gz
-BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: glib2-devel
 BuildRequires: sqlite-devel
+BuildRequires: libarchive-devel
 BuildRequires: intltool
 BuildRequires: gettext
 
@@ -27,15 +27,15 @@ entries.
 %install
 rm -rf $RPM_BUILD_ROOT
 make install DESTDIR=$RPM_BUILD_ROOT
+
 # we don't have any translation just yet... soon
 #%find_lang %name
 
-%clean
-rm -rf $RPM_BUILD_ROOT
-
 %post
 # we create the database file if it does not exist
-/usr/sbin/app-install-create
+if [ ! -f /var/lib/app-install/desktop.db ]; then
+	/usr/sbin/app-install-create
+fi
 
 %files
 #%files -f %{name}.lang
