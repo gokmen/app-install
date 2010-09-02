@@ -299,7 +299,9 @@ ai_generate_copy_icons (const gchar *root, const gchar *directory, const gchar *
 	for (i=0; icon_sizes[i] != NULL; i++) {
 
 		/* get the icon name */
-		if (g_strcmp0 (icon_sizes[i], "scalable") == 0)
+		if (g_strstr_len (icon_name, -1, ".") != NULL)
+			icon_name_full = g_strdup (icon_name);
+		else if (g_strcmp0 (icon_sizes[i], "scalable") == 0)
 			icon_name_full = g_strdup_printf ("%s.svg", icon_name);
 		else
 			icon_name_full = g_strdup_printf ("%s.png", icon_name);
