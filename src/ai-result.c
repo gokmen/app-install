@@ -276,7 +276,6 @@ static void
 ai_result_init (AiResult *result)
 {
 	result->priv = AI_RESULT_GET_PRIVATE (result);
-	result->priv->application_id = NULL;
 }
 
 /*
@@ -289,6 +288,12 @@ ai_result_finalize (GObject *object)
 	AiResultPrivate *priv = result->priv;
 
 	g_free (priv->application_id);
+	g_free (priv->application_name);
+	g_free (priv->application_summary);
+	g_free (priv->package_name);
+	g_free (priv->categories);
+	g_free (priv->repo_id);
+	g_free (priv->icon_name);
 
 	G_OBJECT_CLASS (ai_result_parent_class)->finalize (object);
 }
