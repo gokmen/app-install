@@ -1,5 +1,5 @@
 src/ai-add.c
-src/ai-create.c
+src/ai-admin.c
 src/ai-generate.c
 src/ai-remove.c
 src/ai-query.c

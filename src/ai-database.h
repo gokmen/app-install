@@ -64,6 +64,8 @@ gboolean	 ai_database_close			(AiDatabase	*database,
 							 GError		**error);
 gboolean	 ai_database_create			(AiDatabase	*database,
 							 GError		**error);
+gboolean	 ai_database_upgrade			(AiDatabase	*database,
+							 GError		**error);
 gboolean	 ai_database_remove_by_repo		(AiDatabase	*database,
 							 const gchar	*repo,
 							 GError		**error);
@@ -123,6 +125,11 @@ gboolean	 ai_database_import_by_repo		(AiDatabase	*database,
 							 const gchar	*repo,
 							 guint		*value,
 							 GError		**error);
+gboolean	 ai_database_set_installed_by_id	(AiDatabase	*database,
+							 const gchar	*application_id,
+							 gboolean	 value,
+							 GError		**error);
+guint		ai_database_get_version			(AiDatabase	*database);
 
 G_END_DECLS
 

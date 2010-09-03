@@ -3,7 +3,7 @@
 *.o
 ai-self-test
 app-install-add
-app-install-create
+app-install-admin
 app-install-generate
 app-install-remove
 app-install-extract-package

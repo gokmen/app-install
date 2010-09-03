@@ -45,6 +45,9 @@ struct _AiResultPrivate
 	gchar				*categories;
 	gchar				*repo_id;
 	gchar				*icon_name;
+	guint				 rating;
+	gchar				*screenshot_url;
+	gboolean			 installed;
 };
 
 enum {
@@ -56,6 +59,9 @@ enum {
 	PROP_CATEGORIES,
 	PROP_REPO_ID,
 	PROP_ICON_NAME,
+	PROP_RATING,
+	PROP_SCREENSHOT_URL,
+	PROP_INSTALLED,
 	PROP_LAST
 };
 
@@ -125,6 +131,33 @@ ai_result_get_icon_name (AiResult *result)
 }
 
 /*
+ * ai_result_get_rating:
+ */
+guint
+ai_result_get_rating (AiResult *result)
+{
+	return result->priv->rating;
+}
+
+/*
+ * ai_result_get_screenshot_url:
+ */
+const gchar *
+ai_result_get_screenshot_url (AiResult *result)
+{
+	return result->priv->screenshot_url;
+}
+
+/*
+ * ai_result_get_installed:
+ */
+gboolean
+ai_result_get_installed (AiResult *result)
+{
+	return result->priv->installed;
+}
+
+/*
  * ai_result_get_property:
  */
 static void
@@ -154,6 +187,15 @@ ai_result_get_property (GObject *object, guint prop_id, GValue *value, GParamSpe
 		break;
 	case PROP_ICON_NAME:
 		g_value_set_string (value, priv->icon_name);
+		break;
+	case PROP_RATING:
+		g_value_set_uint (value, priv->rating);
+		break;
+	case PROP_SCREENSHOT_URL:
+		g_value_set_string (value, priv->screenshot_url);
+		break;
+	case PROP_INSTALLED:
+		g_value_set_boolean (value, priv->installed);
 		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -191,6 +233,15 @@ ai_result_set_property (GObject *object, guint prop_id, const GValue *value, GPa
 		break;
 	case PROP_ICON_NAME:
 		priv->icon_name = g_value_dup_string (value);
+		break;
+	case PROP_RATING:
+		priv->rating = g_value_get_uint (value);
+		break;
+	case PROP_SCREENSHOT_URL:
+		priv->screenshot_url = g_value_dup_string (value);
+		break;
+	case PROP_INSTALLED:
+		priv->installed = g_value_get_boolean (value);
 		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -266,6 +317,30 @@ ai_result_class_init (AiResultClass *klass)
 				     G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
 	g_object_class_install_property (object_class, PROP_ICON_NAME, pspec);
 
+	/*
+	 * AiResult:rating:
+	 */
+	pspec = g_param_spec_uint ("rating", NULL, NULL,
+				   0, 100, 0,
+				   G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
+	g_object_class_install_property (object_class, PROP_RATING, pspec);
+
+	/*
+	 * AiResult:screenshot-url:
+	 */
+	pspec = g_param_spec_string ("screenshot-url", NULL, NULL,
+				     NULL,
+				     G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
+	g_object_class_install_property (object_class, PROP_SCREENSHOT_URL, pspec);
+
+	/*
+	 * AiResult:installed:
+	 */
+	pspec = g_param_spec_boolean ("installed", NULL, NULL,
+				      FALSE,
+				      G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
+	g_object_class_install_property (object_class, PROP_INSTALLED, pspec);
+
 	g_type_class_add_private (klass, sizeof (AiResultPrivate));
 }
 
@@ -294,6 +369,7 @@ ai_result_finalize (GObject *object)
 	g_free (priv->categories);
 	g_free (priv->repo_id);
 	g_free (priv->icon_name);
+	g_free (priv->screenshot_url);
 
 	G_OBJECT_CLASS (ai_result_parent_class)->finalize (object);
 }

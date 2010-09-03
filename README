@@ -82,7 +82,7 @@ GNOME. There are lots of things we need to add for this to work really well.
 
 >What do the tools do?
 
-$ app-install-create: creates the initial database, only used in the post section
+$ app-install-admin: creates the initial database, only used in the post section
                       of the app-install package
 $ app-install-add: adds data to the system database, used in repo packages
 $ app-install-remove: removes data from the system database, used in repo packages

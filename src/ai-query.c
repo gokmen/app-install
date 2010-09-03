@@ -137,6 +137,9 @@ main (int argc, char *argv[])
 			g_print ("      %s: %s\n", _("Categories"), ai_result_get_categories (result));
 			g_print ("      %s: %s\n", _("Repository ID"), ai_result_get_repo_id (result));
 			g_print ("      %s: %s\n", _("Icon Name"), ai_result_get_icon_name (result));
+			g_print ("      %s: %i\n", _("Rating"), ai_result_get_rating (result));
+			g_print ("      %s: %s\n", _("Screenshot"), ai_result_get_screenshot_url (result));
+			g_print ("      %s: %s\n", _("Installed"), ai_result_get_installed (result) ? "TRUE" : "FALSE");
 		}
 	}
 

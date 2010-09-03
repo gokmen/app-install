@@ -31,7 +31,7 @@ libaishared_a_SOURCES =					\
 
 libaishared_a_CFLAGS = $(WARNINGFLAGS_C)
 
-sbin_PROGRAMS = app-install-create app-install-remove app-install-add
+sbin_PROGRAMS = app-install-admin app-install-remove app-install-add
 
 bin_PROGRAMS = app-install-extract-package app-install-generate app-install-query
 
@@ -41,11 +41,11 @@ app_install_extract_package_SOURCES =			\
 app_install_extract_package_LDADD = $(GLIB_LIBS) $(ARCHIVE_LIBS) libaishared.a
 app_install_extract_package_CFLAGS = $(WARNINGFLAGS_C)
 
-app_install_create_SOURCES =				\
-	ai-create.c					\
+app_install_admin_SOURCES =				\
+	ai-admin.c					\
 	$(NULL)
-app_install_create_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(ARCHIVE_LIBS) $(SQLITE_LIBS) libaishared.a
-app_install_create_CFLAGS = $(WARNINGFLAGS_C)
+app_install_admin_LDADD = $(GIO_LIBS) $(GLIB_LIBS) $(ARCHIVE_LIBS) $(SQLITE_LIBS) libaishared.a
+app_install_admin_CFLAGS = $(WARNINGFLAGS_C)
 
 app_install_query_SOURCES =				\
 	ai-query.c					\

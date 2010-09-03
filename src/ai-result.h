@@ -57,6 +57,9 @@ const gchar	*ai_result_get_package_name		(AiResult	*result);
 const gchar	*ai_result_get_categories		(AiResult	*result);
 const gchar	*ai_result_get_repo_id			(AiResult	*result);
 const gchar	*ai_result_get_icon_name		(AiResult	*result);
+guint		 ai_result_get_rating			(AiResult	*result);
+const gchar	*ai_result_get_screenshot_url		(AiResult	*result);
+gboolean	 ai_result_get_installed		(AiResult	*result);
 
 G_END_DECLS
 

@@ -73,7 +73,7 @@ def main():
 
     # open sql file
     db = dist + "/%s.db" % reponame
-    cmd = "../src/app-install-create --database=%s" % db
+    cmd = "../src/app-install-admin --force --create --database=%s" % db
     print 'creating database'
     p = subprocess.Popen(cmd, cwd='.', shell=True, stdout=subprocess.PIPE)
     p.wait()

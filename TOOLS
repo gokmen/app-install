@@ -7,9 +7,9 @@ Use cases:
 
 
 ****************************************************
-Name:		app-install-create
+Name:		app-install-admin
 Purpose:	Creates a blank database with the correct schema
-Example:	app-install-create --database=appdata.db
+Example:	app-install-admin --create --database=appdata.db
 Notes:		Will not create a database if the file already exists
 
 ****************************************************

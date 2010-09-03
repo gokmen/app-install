@@ -24,6 +24,7 @@
 #include <glib-object.h>
 #include <sqlite3.h>
 #include <gio/gio.h>
+#include <stdlib.h>
 
 #include "egg-debug.h"
 
@@ -46,6 +47,7 @@ struct _AiDatabasePrivate
 	gchar				*filename;
 	gchar				*icon_path;
 	gboolean			 locked;
+	guint				 dbversion;
 };
 
 enum {
@@ -130,6 +132,23 @@ out:
 	return ret;
 }
 
+
+/**
+ * ai_database_get_dbversion_sqlite_cb:
+ **/
+static gint
+ai_database_get_dbversion_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+{
+	guint *version = (guint *) data;
+	/* we only expect one reply */
+	if (argc != 1)
+		return 1;
+
+	/* parse version string */
+	*version = atoi (argv[0]);
+	return 0;
+}
+
 /*
  * ai_database_open:
  */
@@ -152,7 +171,7 @@ ai_database_open (AiDatabase *database, gboolean synchronous, GError **error)
 
 	/* open database */
 	rc = sqlite3_open (priv->filename, &priv->db);
-	if (rc) {
+	if (rc != SQLITE_OK) {
 		g_set_error (error, 1, 0, "Can't open database %s: %s\n", priv->filename, sqlite3_errmsg (priv->db));
 		ret = FALSE;
 		goto out;
@@ -162,17 +181,34 @@ ai_database_open (AiDatabase *database, gboolean synchronous, GError **error)
 	if (!synchronous) {
 		statement = "PRAGMA synchronous=OFF";
 		rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
-		if (rc) {
+		if (rc != SQLITE_OK) {
 			g_set_error (error, 1, 0, "Can't turn off sync from %s: %s\n", priv->filename, sqlite3_errmsg (priv->db));
 			ret = FALSE;
 			goto out;
 		}
 	}
 
+	/* get version, failure is okay as v1 databases didn't have this table */
+	statement = "SELECT value FROM config WHERE data = 'dbversion'";
+	rc = sqlite3_exec (priv->db, statement, ai_database_get_dbversion_sqlite_cb, (void*) &priv->dbversion, NULL);
+	if (rc != SQLITE_OK)
+		priv->dbversion = 1;
+	egg_debug ("operating on database version %i", priv->dbversion);
+
 	/* okay for business */
 	priv->locked = TRUE;
 out:
 	return ret;
+}
+
+/*
+ * ai_database_get_version:
+ */
+guint
+ai_database_get_version (AiDatabase *database)
+{
+	g_return_val_if_fail (AI_IS_DATABASE (database), 0);
+	return database->priv->dbversion;
 }
 
 /*
@@ -208,14 +244,7 @@ ai_database_close (AiDatabase *database, gboolean vaccuum, GError **error)
 
 	sqlite3_close (priv->db);
 	priv->locked = FALSE;
-
-//	/* if the database file was not installed (or was nuked) recreate it */
-//	create_file = g_file_test (database, G_FILE_TEST_EXISTS);
-//	if (create_file == TRUE) {
-//		egg_warning ("already exists");
-//		goto out;
-//	}
-
+	priv->dbversion = 0;
 out:
 	return ret;
 }
@@ -248,7 +277,10 @@ ai_database_create (AiDatabase *database, GError **error)
 		    "repo_id TEXT,"
 		    "icon_name TEXT,"
 		    "application_name TEXT,"
-		    "application_summary TEXT);";
+		    "application_summary TEXT,"
+		    "rating INTEGER DEFAULT 0,"
+		    "screenshot_url TEXT,"
+		    "installed BOOLEAN DEFAULT FALSE);";
 	rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
 	if (rc) {
 		g_set_error (error, 1, 0, "Can't create applications table: %s\n", sqlite3_errmsg (priv->db));
@@ -268,8 +300,90 @@ ai_database_create (AiDatabase *database, GError **error)
 		ret = FALSE;
 		goto out;
 	}
+
+	/* create config */
+	statement = "CREATE TABLE config ("
+		    "data TEXT primary key,"
+		    "value INTEGER);";
+	rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
+	if (rc) {
+		g_set_error (error, 1, 0, "Can't create config table: %s\n", sqlite3_errmsg (priv->db));
+		ret = FALSE;
+		goto out;
+	}
+	statement = "INSERT INTO config (data, value) VALUES ('dbversion', 2);";
+	rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
+	if (rc) {
+		g_set_error (error, 1, 0, "Can't insert dbver: %s\n", sqlite3_errmsg (priv->db));
+		ret = FALSE;
+		goto out;
+	}
 out:
 	return ret;
+}
+
+/*
+ * ai_database_upgrade:
+ */
+gboolean
+ai_database_upgrade (AiDatabase *database, GError **error)
+{
+	gboolean ret = TRUE;
+	const gchar *statement;
+	gint rc;
+	guint done_upgrade = FALSE;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
+
+	/* upgrade from version 1 */
+	if (priv->dbversion == 1) {
+
+		/* create config */
+		statement = "CREATE TABLE config ("
+			    "data TEXT primary key,"
+			    "value INTEGER);";
+		rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
+		if (rc) {
+			g_set_error (error, 1, 0, "Can't create config table: %s\n", sqlite3_errmsg (priv->db));
+			ret = FALSE;
+			goto out;
+		}
+
+		/* add per-application new data */
+		statement = "ALTER TABLE applications ADD COLUMN rating INTEGER DEFAULT 0;";
+		sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
+		statement = "ALTER TABLE applications ADD COLUMN screenshot_url TEXT;";
+		sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
+		statement = "ALTER TABLE applications ADD COLUMN installed BOOLEAN DEFAULT FALSE;";
+		sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
+
+		priv->dbversion = 2;
+		done_upgrade = TRUE;
+	}
+
+	/* set the new database version */
+	if (done_upgrade) {
+		statement = "INSERT INTO config (data, value) VALUES ('dbversion', 2);";
+		rc = sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
+		if (rc) {
+			g_set_error (error, 1, 0, "Can't change dbver: %s\n", sqlite3_errmsg (priv->db));
+			ret = FALSE;
+			goto out;
+		}
+	} else {
+		egg_debug ("database already newest version, not performing any changes");
+	}
+out:
+	return ret;
+
 }
 
 static const gchar *icon_sizes[] = { "22x22", "24x24", "32x32", "48x48", "scalable", NULL };
@@ -550,6 +664,9 @@ ai_database_search_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_n
 	const gchar *icon_name = NULL;
 	const gchar *application_name = NULL;
 	const gchar *application_summary = NULL;
+	guint rating = 0;
+	const gchar *screenshot_url = NULL;
+	gboolean installed = TRUE;
 	AiResult *result;
 
 	for (i=0; i<(guint)argc; i++) {
@@ -567,6 +684,12 @@ ai_database_search_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_n
 			application_name = argv[i];
 		else if (g_strstr_len (col_name[i], -1, "application_summary") != NULL)
 			application_summary = argv[i];
+		else if (g_strstr_len (col_name[i], -1, "rating") != NULL)
+			rating = atoi (argv[i]);
+		else if (g_strstr_len (col_name[i], -1, "screenshot_url") != NULL)
+			screenshot_url = argv[i];
+		else if (g_strstr_len (col_name[i], -1, "installed") != NULL)
+			installed = atoi (argv[i]);
 		else
 			egg_warning ("unhandled column: %s", col_name[i]);
 	}
@@ -581,6 +704,9 @@ ai_database_search_sqlite_cb (void *data, gint argc, gchar **argv, gchar **col_n
 			       "icon-name", icon_name,
 			       "application-name", application_name,
 			       "application-summary", application_summary,
+			       "rating", rating,
+			       "screenshot-url", screenshot_url,
+			       "installed", installed,
 			       NULL);
 	g_ptr_array_add (array, result);
 	return 0;
@@ -613,7 +739,8 @@ ai_database_search_by_id (AiDatabase *database, const gchar *value, GError **err
 
 	/* check that there are no existing entries from this repo */
 	statement = g_strdup_printf ("SELECT application_id, package_name, categories, "
-				     "repo_id, icon_name, application_name, application_summary "
+				     "repo_id, icon_name, application_name, application_summary, "
+				     "rating, screenshot_url, installed "
 				     "FROM applications WHERE application_id = '%s'", value);
 	rc = sqlite3_exec (priv->db, statement, ai_database_search_sqlite_cb, (void*) array_tmp, &error_msg);
 	if (rc != SQLITE_OK) {
@@ -657,7 +784,8 @@ ai_database_search_by_name (AiDatabase *database, const gchar *value, GError **e
 
 	/* check that there are no existing entries from this repo */
 	statement = g_strdup_printf ("SELECT application_id, package_name, categories, "
-				     "repo_id, icon_name, application_name, application_summary "
+				     "repo_id, icon_name, application_name, application_summary, "
+				     "rating, screenshot_url, installed "
 				     "FROM applications WHERE application_name LIKE '%%%s%%'", value);
 	rc = sqlite3_exec (priv->db, statement, ai_database_search_sqlite_cb, (void*) array_tmp, &error_msg);
 	if (rc != SQLITE_OK) {
@@ -703,6 +831,7 @@ ai_database_search_by_id_locale (AiDatabase *database, const gchar *value, const
 	/* check that there are no existing entries from this repo */
 	statement = g_strdup_printf ("SELECT a.application_id, a.package_name, a.categories, "
 				     "a.repo_id, a.icon_name, "
+				     "a.rating, a.screenshot_url, a.installed, "
 				     "COALESCE(t.application_name, a.application_name), "
 				     "COALESCE(t.application_summary, a.application_summary) "
 				     "FROM applications a LEFT JOIN translations t ON a.application_id = t.application_id AND t.locale = 'pt_BR' "
@@ -750,6 +879,7 @@ ai_database_search_by_name_locale (AiDatabase *database, const gchar *value, con
 	/* check that there are no existing entries from this repo */
 	statement = g_strdup_printf ("SELECT a.application_id, a.package_name, a.categories, "
 				     "a.repo_id, a.icon_name, "
+				     "a.rating, a.screenshot_url, a.installed, "
 				     "COALESCE(t.application_name, a.application_name), "
 				     "COALESCE(t.application_summary, a.application_summary) "
 				     "FROM applications a LEFT JOIN translations t ON a.application_id = t.application_id AND t.locale = '%s' "
@@ -1262,6 +1392,55 @@ out:
 	g_free (temp);
 	if (foreign_db != NULL)
 		sqlite3_close (foreign_db);
+	return ret;
+}
+
+/*
+ * ai_database_set_installed_by_id:
+ */
+gboolean
+ai_database_set_installed_by_id (AiDatabase *database,
+				 const gchar *application_id, gboolean value,
+				 GError **error)
+{
+	gboolean ret = TRUE;
+	gint rc;
+	gchar *statement = NULL;
+	gchar *error_msg;
+	AiDatabaseTemp *temp = NULL;
+	AiDatabasePrivate *priv = AI_DATABASE (database)->priv;
+
+	g_return_val_if_fail (AI_IS_DATABASE (database), FALSE);
+
+	/* check database is in correct state */
+	if (!priv->locked) {
+		g_set_error (error, 1, 0, "database is not open");
+		ret = FALSE;
+		goto out;
+	}
+
+	/* check database is in correct state */
+	if (priv->dbversion < 2) {
+		g_set_error (error, 1, 0, "database is new enough to support this feature");
+		ret = FALSE;
+		goto out;
+	}
+
+	/* NULL means all */
+	if (application_id == NULL)
+		application_id = "*";
+
+	/* copy all the icons */
+	statement = g_strdup_printf ("UPDATE applications SET installed = '%i' WHERE application_id = '%s'", value, application_id);
+	rc = sqlite3_exec (priv->db, statement, ai_database_copy_icons_sqlite_cb, (void*) temp, &error_msg);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0, "SQL error: %s\n", error_msg);
+		sqlite3_free (error_msg);
+		ret = FALSE;
+		goto out;
+	}
+out:
+	g_free (statement);
 	return ret;
 }
 
