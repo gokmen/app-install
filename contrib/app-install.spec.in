@@ -48,7 +48,9 @@ fi
 %dir %{_datadir}/app-install/icons
 %dir %{_datadir}/app-install/desktop
 %dir %{_localstatedir}/lib/app-install
-%{_datadir}/app-install/docs/*
+%{_datadir}/app-install/*
+%dir %{_sysconfdir}/app-install
+%{_sysconfdir}/app-install/*.conf
 
 %changelog
 * #LONGDATE# Richard Hughes <richard@hughsie.com> #VERSION#-0.#BUILD##ALPHATAG#

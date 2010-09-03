@@ -119,6 +119,7 @@ dnl ---------------------------------------------------------------------------
 AC_CONFIG_FILES([
 Makefile
 docs/Makefile
+etc/Makefile
 contrib/Makefile
 src/Makefile
 data/Makefile
